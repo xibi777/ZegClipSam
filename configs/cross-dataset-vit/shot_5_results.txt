@@ -1,0 +1,5 @@
+vit_coco_voc_split_0_shot_5_seed0.py
+pAcc:0.8933712774460998
+mIoU_S:nan
+mIoU_U:0.8150754716171112
+hIoU:nan

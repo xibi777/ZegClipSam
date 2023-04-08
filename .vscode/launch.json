@@ -1,0 +1,519 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "train_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc_split_0",
+            ]
+        },
+        {
+            "name": "test_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+
+        
+        {
+            "name": "test_voc_binary",
+            "type": "python",
+            "request": "launch",
+            "program": "./test_binary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12_fsseg/dino_b_16_split_1_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_1/iter_20000.pth",
+                "/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_1.txt",
+                "--eval", "mIoU",
+            ]
+        },
+        
+        
+        {
+            "name": "test_coco_binary",
+            "type": "python",
+            "request": "launch",
+            "program": "./test_binary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "args": [
+                "configs/coco2014_vit_fsseg/vit_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit/vit_b_16_split_0/iter_40000.pth",
+                "/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
+            "name": "test_voc_binary_5",
+            "type": "python",
+            "request": "launch",
+            "program": "./test_binary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_fsseg/dino_b_16_split_0_512x512_20k_12_10_shot_5_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_20000.pth",
+                "/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
+            "name": "test_voc_newcls",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc_newcls/dino_b_16_split_0/iter_5000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+        {
+            "name": "test_voc_multi",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12_ft/dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V3_shot_1_seed0/iter_2000.pth",
+                "--eval", "mIoU",
+                "--savetxt", "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V3/shot1_iter_2000_results.txt"
+            ]
+        },
+        {
+            "name": "train_voc_fully",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "configs/voc12/dino_b_16_fully_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc",
+            ]
+        },
+        {
+            "name": "test_voc_fully",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_fully_512x512_20k_12_10.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_16_fully_vpt/iter_20000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+        {
+            "name": "train_voc_fix",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_fully_512x512_20k_fix.py",
+                "--work-dir", "./work_dirs/voc_fix",
+            ]
+        },
+
+        {
+            "name": "train_voc_pseudo",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_fully_512x512_20k_pseudo.py",
+                "--work-dir", "./work_dirs/voc",
+            ]
+        },
+
+        
+        {
+            "name": "train_voc_ft",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "configs/voc12_ft_bias/bias_dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir", "/media/data/ziqin/work_dirs_fss/voc_ft_bias/split_0_seed0_0.00005",
+                // "--load-from", "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
+                "--load-from", "/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
+            ]
+        },
+        
+        
+        {
+            "name": "train_voc_ft_proto",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12_ft_proto/proto_vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir", "./work_dirs_fss/voc_ft_proto",
+                "--load-from", "/media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/iter_10000.pth",
+            ]
+        },
+
+        
+        
+        {
+            "name": "test_voc_ft_proto",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12_ft_proto/proto_vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "./work_dirs_fss/voc_ft_proto/iter_100.pth",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
+            "name": "train_voc_ft_tune",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10_novel_ft.py",
+                "--work-dir", "./voc/ft_tune",
+                "--load-from", "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V1/iter_20000.pth",
+            ]
+        },
+
+        {
+            "name": "test_voc_ft_tune",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "configs/voc12_ft/decoder_dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V3_shot_1_seed0_decoder/iter_500.pth",
+                "--eval", "mIoU",
+            ]
+        },
+        {
+            "name": "train_mae_voc_fully",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_mae/mae_b_16_fully_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc",
+            ]
+        },
+        {
+            "name": "train_coco_fully",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "configs/coco2014/dino_b_16_fully_512x512_20k_12_50.py",
+                "--work-dir", "./work_dirs/coco/",
+            ]
+        },
+
+        
+        {
+            "name": "train_voc_ablation",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "configs/voc12_ablation_VPT_NEL_WORD/dino_b_16_split_0_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/dino_ablation/",
+            ]
+        },
+ 
+        {
+            "name": "test_coco_mae",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "args": [
+                "configs/coco2014_mae/mae_b_16_split_2_512x512_40k_shot_1_seed0.py",
+                "--work-dir=/media/data/ziqin/work_dirs_fss/coco_mae/mae_b_16_split_2/iter_40000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
+            "name": "train_voc_beit",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_beit/beit_b_16_fully_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc_deit",
+            ]
+        },
+           
+        {
+            "name": "train_voc_vit",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_vit/vit_b_16_fully_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc_vit",
+            ]
+        },    
+        
+        
+        {
+            "name": "test_voc_vit_saverd",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12_vit/vit_b_16_split_0_512x512_20k_shot_1_seed0.py",
+                // "/media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/iter_10000.pth",
+                "/media/data/ziqin/work_dirs_fss/voc_vit/vit_16_fully_vpt/iter_20000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        
+        {
+            "name": "test_voc_dino_saverd",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/visualization/voc_dino_split_0_shot_5_seed1.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_b_16_split_0/iter_10000.pth",
+                "--show", "--show-dir", "./work_firs/visualization/",
+            ]
+        },  
+
+        
+        {
+            "name": "test_voc_dino_baseline",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12_ablation_Fix_EL_RD/dino_b_16_split_0_512x512_20k_fix_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_ablation_Fix_EL_RD/dino_b_16_split_0/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        {
+            "name": "test_voc_vit_vis",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "/media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_fully/vit_b_16_fully.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_fully/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        {
+            "name": "test_voc_dino_vis",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "/media/data/ziqin/work_dirs_fss/voc12_dino_fully/Fix_EL_WORD/dino_b_16_fully_512x512_20k_fix.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino_fully/Fix_EL_WORD/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        {
+            "name": "test_ft_voc_dino_vis",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/visualization/ft_word_voc_dino_split_0_shot_1_seed1.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino_FT_EL_WORD/dino_b_16_split_0/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        {
+            "name": "test_vpt_voc_dino_vis",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/visualization/vpt_rd_voc_dino_split_0_shot_1_seed1.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_b_16_split_0/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },  
+
+        {
+            "name": "test_voc_dino_vis_binary",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/visualization/binary_voc_dino_split_0_shot_5_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_b_16_split_0/iter_10000.pth",
+                "--show", "--show-dir", "/media/data/ziqin/work_dirs_fss/visualization_binary/pred_voc_dino_split_0/",
+            ]
+        },  
+
+        {
+            "name": "test_cross_coco_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/cross-dataset-dino/dino_voc_coco_split_0_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_16_fully_vpt/iter_20000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
+            "name": "train_capl_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12_capl/vit_b_16_split_0_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs_fss/capl",
+            ]
+        },
+        {
+            "name": "test_capl_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12_capl/vit_b_16_split_1_512x512_20k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc12_capl/split_1/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },
+    ]
+}

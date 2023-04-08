@@ -1,0 +1,1 @@
+bash dist_train_0123.sh configs/coco2014/dino_b_16_split_0_512x512_20k_12_50.py ./work_dirs_fss/coco/

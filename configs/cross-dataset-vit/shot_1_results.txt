@@ -1,0 +1,15 @@
+vit_coco_voc_split_0_shot_1_seed0.py
+pAcc:0.8397511264770072
+mIoU_S:nan
+mIoU_U:0.7368015040075733
+hIoU:nan
+vit_coco_voc_split_0_shot_1_seed1.py
+pAcc:0.8459992422176214
+mIoU_S:nan
+mIoU_U:0.7607188438747967
+hIoU:nan
+vit_coco_voc_split_0_shot_1_seed2.py
+pAcc:0.8963908521338911
+mIoU_S:nan
+mIoU_U:0.8118321018920286
+hIoU:nan

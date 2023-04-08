@@ -1,0 +1,21 @@
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_0/iter_40000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_1_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_1/iter_40000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_1.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_2_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_2/iter_40000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_2.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_3_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_3/iter_40000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_3.txt --eval=mIoU
+
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_0/iter_10000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_1_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_1/iter_10000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_1.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_2_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_2/iter_10000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_2.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_3_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_3/iter_10000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_3.txt --eval=mIoU
+
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_0/iter_20000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_1_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_1/iter_20000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_1.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_2_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_2/iter_20000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_2.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_3_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_3/iter_20000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_3.txt --eval=mIoU
+
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_0/iter_30000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_1_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_1/iter_30000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_1.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_2_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_2/iter_30000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_2.txt --eval=mIoU
+python test_binary.py configs/coco2014_fsseg/dino_b_16_split_3_512x512_20k_12_50_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco/dino_b_16_split_3/iter_30000.pth /media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_3.txt --eval=mIoU
+
+

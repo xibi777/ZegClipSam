@@ -1,0 +1,15 @@
+dino_coco_voc_split_0_shot_5_seed0.py
+pAcc:0.9039629520724607
+mIoU_S:nan
+mIoU_U:0.7945792340479612
+hIoU:nan
+dino_coco_voc_split_0_shot_5_seed1.py
+pAcc:0.9109426796567816
+mIoU_S:nan
+mIoU_U:0.7929935532369735
+hIoU:nan
+dino_coco_voc_split_0_shot_5_seed2.py
+pAcc:0.8977050568161549
+mIoU_S:nan
+mIoU_U:0.7960707086808452
+hIoU:nan
