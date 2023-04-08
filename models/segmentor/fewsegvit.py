@@ -183,12 +183,12 @@ class FewSegViT(FewEncoderDecoder):
         for filename in f:
             filename = filename.strip('\n')
             # print(filename)
-            if len(self.CLASSES) == 20 or len(self.CLASSES) == 21: ## VOC
+            if len(self.CLASSES) == 21: ## VOC
                 image_path = dir + '/JPEGImages/' + str(filename) + '.jpg'
                 # print('image_path:', image_path)
                 label_path = dir + '/Annotations/' + str(filename) + '.png'
                 # print('label_path:', label_path)
-            elif len(self.CLASSES) == 80 or len(self.CLASSES) == 81: ## COCO2014
+            elif len(self.CLASSES) == 81: ## COCO2014
                 image_path = dir + '/JPEGImages/train2014/' + str(filename) + '.jpg'
                 label_path = dir + '/Annotations/train_contain_crowd/' + str(filename) + '.png'
             else:
@@ -204,8 +204,8 @@ class FewSegViT(FewEncoderDecoder):
             # image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
             try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
             except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
             
             # from PIL import Image
             # import matplotlib.pyplot as plt
@@ -248,12 +248,12 @@ class FewSegViT(FewEncoderDecoder):
         for filename in f:
             filename = filename.strip('\n')
             # print(filename)
-            if len(self.CLASSES) == 20: ## VOC
+            if len(self.CLASSES) == 21: ## VOC
                 image_path = dir + '/JPEGImages/' + str(filename) + '.jpg'
                 # print('image_path:', image_path)
                 label_path = dir + '/Annotations/' + str(filename) + '.png'
                 # print('label_path:', label_path)
-            elif len(self.CLASSES) == 80: ## COCO2014
+            elif len(self.CLASSES) == 81: ## COCO2014
                 image_path = dir + '/JPEGImages/train2014/' + str(filename) + '.jpg'
                 label_path = dir + '/Annotations/train_contain_crowd/' + str(filename) + '.png'
             else:
@@ -267,16 +267,16 @@ class FewSegViT(FewEncoderDecoder):
             ## check the image and label
             image, label = self.val_supp_transform(image_ori, label_ori)
             image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## Do not ignore the ground truth label
+            # label[label!=255] -= 1
             label = label.unsqueeze(0)
 
             ## how about generate augmented support images?
             for a_n in range(aug_num):
                 image_aug, label_aug = self.val_supp_aug_transform(image_ori, label_ori)
                 image_aug = image_aug.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
-                label_aug[label_aug==0] = 255 ## ignore the ground truth label
-                label_aug[label_aug!=255] -= 1
+                # label_aug[label_aug==0] = 255 ## ignore the ground truth label
+                # label_aug[label_aug!=255] -= 1
                 label_aug = label_aug.unsqueeze(0)
                 
                 image = torch.concat((image, image_aug), dim=0)

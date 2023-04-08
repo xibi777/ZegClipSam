@@ -202,8 +202,8 @@ class CAPLSegViT(FewEncoderDecoder):
             # image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
             try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
             except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
 
             # get all patch features
             x = self.extract_feat(image)[0][0]

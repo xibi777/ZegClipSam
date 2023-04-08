@@ -184,8 +184,8 @@ class FreeSeg(FewEncoderDecoder):
             image, label = self.val_supp_transform(image, label)
             image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
             
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
 
             # get all patch features
             patch_embeddings = self.extract_feat(image)[0][0]  ## (dim, HW)??
@@ -231,8 +231,8 @@ class FreeSeg(FewEncoderDecoder):
             image, label = self.val_supp_transform(image, label)
             image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
             
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
 
             # get all patch features
             patch_embeddings = self.extract_feat(image)[0][0]  ## (1, dim, 32, 32)

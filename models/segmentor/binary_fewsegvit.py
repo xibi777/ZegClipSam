@@ -183,8 +183,8 @@ class BinaryFewSegViT(FewEncoderDecoder):
                 image, label = self.val_supp_transform(image, label)
                 try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
                 except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-                label[label==0] = 255 ## ignore the ground truth label
-                label[label!=255] -= 1
+                # label[label==0] = 255 ## ignore the ground truth label
+                # label[label!=255] -= 1
                 label = label.unsqueeze(0)
 
                 if k==0:
@@ -242,8 +242,8 @@ class BinaryFewSegViT(FewEncoderDecoder):
             image, label = self.val_supp_transform(image, label)
             try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
             except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
 
             # get all patch features
             with torch.no_grad():

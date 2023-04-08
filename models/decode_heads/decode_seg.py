@@ -281,10 +281,10 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
 
         ### Test the performance of using pseudo labels
-        if not self.training:
-            pred = F.cosine_similarity(both_proto.squeeze().unsqueeze(1), inputs[0][-1].squeeze().reshape(768, 32*32).permute(1,0).unsqueeze(0), dim=-1).reshape(both_proto.squeeze().shape[0], 32, 32).sigmoid()
-            pred = F.interpolate(pred.unsqueeze(0), size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)    
-        return pred
+        # if not self.training:
+        #     pred = F.cosine_similarity(both_proto.squeeze().unsqueeze(1), inputs[0][-1].squeeze().reshape(768, 32*32).permute(1,0).unsqueeze(0), dim=-1).reshape(both_proto.squeeze().shape[0], 32, 32).sigmoid()
+        #     pred = F.interpolate(pred.unsqueeze(0), size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)    
+        # return pred
 
         x = []
         for stage_ in patch_token[:self.use_stages]:
@@ -606,8 +606,8 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations').replace('/val2014/','/val_contain_crowd/')
         self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
         self.gt_label = np.unique(cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE))
-        self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
-        self.gt_label[self.gt_label!=255] -= 1
+        # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
+        # self.gt_label[self.gt_label!=255] -= 1
         self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
 
         if novel_queries is not None:
@@ -668,10 +668,10 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
 
         ### Test the performance of using pseudo labels
-        if not self.training:
-            pred = F.cosine_similarity(both_proto.squeeze().unsqueeze(1), inputs[0][-1].squeeze().reshape(768, 32*32).permute(1,0).unsqueeze(0), dim=-1).reshape(both_proto.squeeze().shape[0], 32, 32).sigmoid()
-            pred = F.interpolate(pred.unsqueeze(0), size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)    
-        return pred
+        # if not self.training:
+        #     pred = F.cosine_similarity(both_proto.squeeze().unsqueeze(1), inputs[0][-1].squeeze().reshape(768, 32*32).permute(1,0).unsqueeze(0), dim=-1).reshape(both_proto.squeeze().shape[0], 32, 32).sigmoid()
+        #     pred = F.interpolate(pred.unsqueeze(0), size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)    
+        # return pred
         
         # query_path = '/media/data/ziqin/work_dirs_fss/WORD_voc_vit_split0_query.npy'
         # if int(self.test_iter) < 2000:

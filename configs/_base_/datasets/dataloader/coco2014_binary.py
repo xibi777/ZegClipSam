@@ -30,7 +30,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
     and ``seg_map_suffix`` is fixed to '.png'.
     """
     CLASSES = (
-        'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 
+        'background', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 
         'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 
         'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 
         'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 
@@ -41,7 +41,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
         'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 
         'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
 
-    PALETTE = [[64, 128, 0], [128, 160, 192], [128, 192, 192], [192, 160, 128], [128, 32, 128], [0, 0, 32], 
+    PALETTE = [[0,0,0], [64, 128, 0], [128, 160, 192], [128, 192, 192], [192, 160, 128], [128, 32, 128], [0, 0, 32], 
     [192, 128, 96], [128, 224, 128], [192, 128, 160], [192, 0, 224], [0, 128, 96], [192, 64, 32], [0, 0, 224], 
     [128, 128, 224], [192, 64, 128], [128, 64, 0], [0, 0, 160], [0, 0, 128], [128, 32, 192], [128, 128, 0], 
     [64, 0, 160], [64, 192, 192], [0, 192, 64], [64, 128, 32], [128, 32, 64], [0, 32, 192], [192, 64, 160], 
@@ -71,7 +71,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
         if self.split == 0:
             self.novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
         elif self.split == 1:
-            self.novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
+            self.novel_class = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78]
         elif self.split == 2:
             self.novel_class = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67, 71, 75, 79]
         elif self.split == 3:
@@ -116,8 +116,8 @@ class BinaryCOCO2014Dataset(CustomDataset):
             filename = filename.strip('\n')
             label_path = '/media/data/ziqin/data_fss/coco2014/Annotations/val_contain_crowd/' + str(filename) + '.png'
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
             binary_label = np.zeros_like(label)
             binary_label[label == n_cls] = 1
             binary_label[label==255] = 255

@@ -29,12 +29,12 @@ class BinaryPascalVOCDataset20(CustomDataset):
         split (str): Split txt file for Pascal VOC and exclude "background" class.
     """
 
-    CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
+    CLASSES = ('bakcground', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
                'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
                'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa',
                'train', 'tvmonitor')
 
-    PALETTE = [[128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128],
+    PALETTE = [[0,0,0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128],
                [128, 0, 128], [0, 128, 128], [128, 128, 128], [64, 0, 0],
                [192, 0, 0], [64, 128, 0], [192, 128, 0], [64, 0, 128],
                [192, 0, 128], [64, 128, 128], [192, 128, 128], [0, 64, 0],
@@ -154,8 +154,8 @@ class BinaryPascalVOCDataset20(CustomDataset):
             filename = filename.strip('\n')
             label_path = '/media/data/ziqin/data_fss/VOC2012/Annotations/' + str(filename) + '.png'
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-            label[label==0] = 255 ## ignore the ground truth label
-            label[label!=255] -= 1
+            # label[label==0] = 255 ## ignore the ground truth label
+            # label[label!=255] -= 1
             binary_label = np.zeros_like(label)
             binary_label[label == n_cls] = 1
             binary_label[label==255] = 255
