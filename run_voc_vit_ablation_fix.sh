@@ -1,0 +1,19 @@
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_RD/vit_b_16_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_RD/vit_b_16_split_0
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_RD/vit_b_16_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_RD/vit_b_16_split_1
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_RD/vit_b_16_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_RD/vit_b_16_split_2
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_RD/vit_b_16_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_RD/vit_b_16_split_3
+
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_WORD/vit_b_16_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_split_0
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_WORD/vit_b_16_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_split_1
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_WORD/vit_b_16_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_split_2
+bash dist_train_01.sh configs/voc12_vit_Fix_EL_WORD/vit_b_16_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_EL_WORD/vit_b_16_split_3
+
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_RD/vit_b_16_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_RD/vit_b_16_split_0
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_RD/vit_b_16_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_RD/vit_b_16_split_1
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_RD/vit_b_16_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_RD/vit_b_16_split_2
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_RD/vit_b_16_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_RD/vit_b_16_split_3
+
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_WORD/vit_b_16_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_WORD/vit_b_16_split_0
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_WORD/vit_b_16_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_WORD/vit_b_16_split_1
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_WORD/vit_b_16_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_WORD/vit_b_16_split_2
+bash dist_train_01.sh configs/voc12_vit_Fix_NEL_WORD/vit_b_16_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc12_vit_Fix_NEL_WORD/vit_b_16_split_3
