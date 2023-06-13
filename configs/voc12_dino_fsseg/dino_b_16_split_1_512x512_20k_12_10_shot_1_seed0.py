@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_1_fsseg.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_20k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
 img_size = 512
@@ -15,7 +15,7 @@ num_classes = len(base_class)
 pretrained = '/media/data/ziqin/pretrained/dino_vitbase16_pretrain.pth'
 
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
-eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_supp_1_5_1000.npy'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_supp_1_1000.npy'
 
 model = dict(
     type='BinaryFewSegViT',
@@ -61,7 +61,7 @@ model = dict(
     novel_class = novel_class,
     both_class = both_class,
     split = 1,
-    shot = 5,
+    shot = 1,
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,
     ft_backbone = False,

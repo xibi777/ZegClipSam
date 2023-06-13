@@ -167,12 +167,14 @@ class BinaryFewSegViT(FewEncoderDecoder):
         if len(sup_name) == 5: ## 5-shot
             for k in range(5):
                 sup_name_k = sup_name[k]
-                if len(self.CLASSES) == 80:
+                if len(self.CLASSES) == 81:
                     image_path = dir + '/JPEGImages/val2014/' + str(sup_name_k) + '.jpg'
                     label_path = dir + '/Annotations/val_contain_crowd/' + str(sup_name_k) + '.png'
-                if len(self.CLASSES) == 20:
+                elif len(self.CLASSES) == 21:
                     image_path = dir + '/JPEGImages/' + str(sup_name_k) + '.jpg'
                     label_path = dir + '/Annotations/' + str(sup_name_k) + '.png'
+                else:
+                    assert AttributeError('Do not support this dataset')
 
                 image = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
@@ -223,13 +225,16 @@ class BinaryFewSegViT(FewEncoderDecoder):
                     novel_proto += (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), binary_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / binary_labels[n_p].sum()  # dim
                     fake_proto += (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), fake_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / fake_labels[n_p].sum()  # dim
             
-            fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
+            # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
+
+            bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
+            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
 
         else: # 1-shot
-            if len(self.CLASSES) == 80:
+            if len(self.CLASSES) == 81:
                 image_path = dir + '/JPEGImages/val2014/' + str(sup_name) + '.jpg'
                 label_path = dir + '/Annotations/val_contain_crowd/' + str(sup_name) + '.png'
-            if len(self.CLASSES) == 20:
+            if len(self.CLASSES) == 21:
                 image_path = dir + '/JPEGImages/' + str(sup_name) + '.jpg'
                 label_path = dir + '/Annotations/' + str(sup_name) + '.png'
 
@@ -270,7 +275,10 @@ class BinaryFewSegViT(FewEncoderDecoder):
             fake_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), fake_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / fake_label.sum()  # dim
             # fake_proto = (fake_proto + self.decode_head.base_qs.mean(dim=0)) / 2
 
-            fake_novel_proto = torch.concat((fake_proto.unsqueeze(0), novel_proto.unsqueeze(0)), dim=0)
+             # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
+            bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
+            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
+            
         # return novel_proto
         self.supp_cls = cls_label
         return fake_novel_proto

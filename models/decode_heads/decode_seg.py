@@ -74,12 +74,14 @@ class TPN_DecoderLayer(TransformerDecoderLayer):
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
 
+        ## self attn of q
         ## ADDED attn between queries: ##Do I need to add?
         # tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
         #                       key_padding_mask=tgt_key_padding_mask)[0]
         # tgt = tgt + self.dropout1(tgt2)
         # tgt = self.norm1(tgt)
 
+        ## cross attn between q and cls
         tgt2, attn2 = self.multihead_attn(
             tgt.transpose(0, 1), memory.transpose(0, 1), memory.transpose(0, 1))
         tgt = tgt + self.dropout2(tgt2)
@@ -396,7 +398,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.0 is the best             
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.3) ## Change the balance factor： 0.0 is the best   
+            return out["pred"]   
         return out
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0):

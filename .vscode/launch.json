@@ -25,8 +25,8 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
+                "configs/voc12_dino/dino_b_16_split_2_512x512_20k_12_10_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_dino/dino_b_16_split_2/iter_10000.pth",
                 "--eval", "mIoU",
             ]
         },
@@ -67,6 +67,24 @@
         },
 
         {
+            "name": "test_voc_binary_1",
+            "type": "python",
+            "request": "launch",
+            "program": "./test_binary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_dino_fsseg/dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_dino/dino_b_16_split_0/iter_10000.pth",
+                "/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
+                "--eval", "mIoU",
+            ]
+        },
+
+        {
             "name": "test_voc_binary_5",
             "type": "python",
             "request": "launch",
@@ -77,8 +95,8 @@
                 "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "configs/voc12_fsseg/dino_b_16_split_0_512x512_20k_12_10_shot_5_seed0.py",
-                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_20000.pth",
+                "configs/voc12_dino_fsseg/dino_b_16_split_0_512x512_20k_12_10_shot_5_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_dino/dino_b_16_split_0/iter_10000.pth",
                 "/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
                 "--eval", "mIoU",
             ]
@@ -360,7 +378,7 @@
             "args": [
                 "configs/visualization/voc_dino_split_0_shot_5_seed1.py",
                 "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_b_16_split_0/iter_10000.pth",
-                "--show", "--show-dir", "./work_firs/visualization/",
+                "--show", "--show-dir", "./work_dirs/visualization/",
             ]
         },  
 

@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_3.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_20k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
 img_size = 512
@@ -60,7 +60,7 @@ model = dict(
     base_class = base_class,
     novel_class = novel_class,
     both_class = both_class,
-    split = 0,
+    split = 3,
     shot = 5,
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,

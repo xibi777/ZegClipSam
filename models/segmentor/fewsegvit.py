@@ -155,7 +155,7 @@ class FewSegViT(FewEncoderDecoder):
             ## register novel prototypies:
             if len(self.base_class) != len(self.both_class): #generalized few-shot setting
                 if not hasattr(self, 'novel_queries'):
-                    print('------------Registering the prototypes of novel classes-----------')
+                    print('\n' + '------------Registering the prototypes of novel classes-----------')
                     self.novel_queries = self.extract_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
                     # print('------------Registering the aug prototypes of novel classes-----------')
                     # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
