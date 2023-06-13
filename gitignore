@@ -1,0 +1,8 @@
+work_dirs
+vis
+
+*.pth
+
+*.jpg
+
+*.png
