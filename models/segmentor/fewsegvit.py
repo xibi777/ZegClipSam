@@ -194,6 +194,7 @@ class FewSegViT(FewEncoderDecoder):
             else:
                 assert AttributeError('Do not support this dataset!')
 
+            print('support_novel_image_path:', image_path)
             image_ori = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
             image_ori = cv2.cvtColor(image_ori, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
             image_ori = np.float32(image_ori) # (0-255)
@@ -313,8 +314,8 @@ class FewSegViT(FewEncoderDecoder):
     def extract_base_proto_epoch(self, qs, patch_features, targets):
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
         assert patch_features.shape[0] == targets.shape[0]
-        # patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
-        targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
+        patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
+        # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
 
         qs_epoch = torch.zeros_like(qs) # [15, dim]
         num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)

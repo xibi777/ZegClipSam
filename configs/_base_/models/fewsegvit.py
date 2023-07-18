@@ -1,5 +1,6 @@
 # model settings
 norm_cfg = dict(type='SyncBN', requires_grad=True)
+# norm_cfg = dict(type='BN', requires_grad=True)
 img_size = 512
 in_channels = 768
 out_indices = [5, 7, 11]

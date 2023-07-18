@@ -13,6 +13,7 @@ from mmseg.datasets import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env, get_root_logger
 import models
+import warnings
 
 
 def parse_args():
@@ -143,7 +144,14 @@ def main():
     # if hasattr(model, 'text_encoder'):
     #     model.text_encoder.init_weights()
 
-    model.backbone = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model.backbone)
+    model.backbone = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model.backbone) #!!!!!!!!!!
+    # SyncBN is not support for DP
+    # if not distributed:
+    #     warnings.warn(
+    #         'SyncBN is only supported with DDP. To be compatible with DP, '
+    #         'we convert SyncBN to BN. Please use dist_train.sh which can '
+    #         'avoid this error.')
+    #     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     logger.info(model)
 

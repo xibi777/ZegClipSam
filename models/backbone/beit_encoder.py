@@ -725,12 +725,12 @@ class PromptBEiT(nn.Module):
         visual_embedding = x[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
         # features.append([global_embedding, visual_embedding])
         if len(self.out_indices) == 1: # return the final features after proj
-            # visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+            visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
             features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
 
         ## get embedding:
-        # global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-        # proto_embedding = proto_embedding / proto_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        proto_embedding = proto_embedding / proto_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
 
         outs.append(tuple(features))
         outs.append(global_embedding) 

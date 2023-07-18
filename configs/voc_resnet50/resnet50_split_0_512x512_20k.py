@@ -24,6 +24,7 @@ model = dict(
     backbone=dict(
         type='LoRAResNet',
         layers=[3, 4, 6, 3],
+        pretrained=pretrained, 
         style='pytorch'),
     decode_head=dict(
         type='ATMSingleHeadSeg',

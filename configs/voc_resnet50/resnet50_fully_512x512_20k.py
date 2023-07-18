@@ -4,7 +4,8 @@ _base_ = [
 ]
 
 img_size = 512
-in_channels = 768
+in_channels = 2048
+channels = 512
 out_indices = [11]
 
 base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -21,6 +22,7 @@ model = dict(
     backbone=dict(
         type='LoRAResNet',
         layers=[3, 4, 6, 3],
+        pretrained=pretrained, 
         style='pytorch'),
     decode_head=dict(
         type='ATMSingleHeadSeg',
@@ -28,13 +30,13 @@ model = dict(
         in_channels=in_channels,
         seen_idx=base_class,
         all_idx=both_class,
-        channels=in_channels,
+        channels=channels,
         num_classes=num_classes,
         num_layers=3,
         num_heads=8,
-        use_proj=False,
+        use_proj=True,
         use_stages=len(out_indices),
-        embed_dims=in_channels,
+        embed_dims=channels,
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
             mask_weight=20.0,
@@ -66,6 +68,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=8,
-            workers_per_gpu=8,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 

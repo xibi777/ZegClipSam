@@ -208,9 +208,9 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), embed_dims)))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
 
-        self.q_proj = nn.Linear(embed_dims * 2, embed_dims)
+        self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
         ## ADDED FC for prototype
         # self.proto_proj = nn.Linear(embed_dims, embed_dims)
@@ -398,12 +398,13 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.3) ## Change the balance factor： 0.0 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
             return out["pred"]   
         return out
 
-    def semantic_inference(self, mask_pred, seen_idx, weight=0.0):
+    def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
         mask_pred = mask_pred.sigmoid()
+        mask_pred[:,0] = mask_pred[:,0] - 0.3 #reduce background
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
@@ -729,12 +730,13 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor? Do I need to extra reduce the logtis on background?
             return out["pred"]                  
         return out
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0):
         mask_pred = mask_pred.sigmoid()
+        # print(seen_idx)
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 

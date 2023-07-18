@@ -11,6 +11,7 @@ from models.backbone.dino_encoder import BaseVisionTransformer, PromptVisionTran
 from models.backbone.mae_encoder import PromptMaskedAutoencoderViT
 from models.backbone.beit_encoder import PromptBEiT
 from models.backbone.vit_encoder import PromptImageNetViT, BaseImageNetViT
+from models.backbone.resnet_encoder import LoRAResNet
 
 from models.decode_heads.decode_seg import ATMSingleHeadSeg, ATMSingleHeadSegWORD
 from models.decode_heads.ft_decode_seg import FTATMSingleHeadSeg
