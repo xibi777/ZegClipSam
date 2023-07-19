@@ -211,7 +211,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         self.register_buffer("base_qs", torch.randn((len(self.seen_idx), embed_dims)))
         
         ## bg
-        self.bg_qs = nn.Embedding(1, embed_dims)
+        self.bg_qs = nn.Parameter(torch.randn(1, embed_dims))
 
         self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
