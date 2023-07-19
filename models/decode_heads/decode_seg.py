@@ -342,7 +342,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # base_qs = self.proto_proj(self.base_qs) #ADDED
             
             #### how about use Learnable bg??
-            base_qs_epoch = torch.concat((self.bg_qs[0], self.base_qs[1:]),dim=0)
+            base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
             q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!!
