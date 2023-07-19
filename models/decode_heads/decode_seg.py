@@ -208,7 +208,10 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), embed_dims)))
+        
+        ## bg
+        self.bg_qs = nn.Embedding(1, embed_dims)
 
         self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
@@ -337,7 +340,14 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             ## V3: q is generate by combine self.base_qs and cls token and use updata base_qs by the protopyes from base images
             # base_qs = self.base_qs
             # base_qs = self.proto_proj(self.base_qs) #ADDED
-            q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            
+            #### how about use Learnable bg??
+            base_qs_epoch = torch.concat((self.bg_qs[0], self.base_qs[1:]),dim=0)
+            q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
+            
+            #### the momentum updated bg !!!!!!!!
+            # q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             ## update self.base_qs
             self.cur_iter += 1
@@ -404,7 +414,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
         mask_pred = mask_pred.sigmoid()
-        mask_pred[:,0] = mask_pred[:,0] - 0.3 #reduce background
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
