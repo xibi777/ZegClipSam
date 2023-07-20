@@ -584,10 +584,11 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), embed_dims)))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
+        ## bg
+        self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
 
-        self.q_proj = nn.Linear(embed_dims, embed_dims)
-        # torch.nn.init.eye_(self.q_proj.weight)
+        self.q_proj = nn.Linear(in_channels, embed_dims)
 
         # self.q = nn.Embedding(len(self.seen_idx), self.dim) ## learnable queries for base classes
 
