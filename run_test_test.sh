@@ -1,0 +1,5 @@
+bash dist_train_0123.sh configs/voc12_resnet50_word/resnet50_fully_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_word/resnet50_fully
+bash dist_train_0123.sh configs/voc12_resnet50_word/resnet50_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_word/resnet50_split_0
+bash dist_train_0123.sh configs/voc12_resnet50_word/resnet50_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_word/resnet50_split_1
+bash dist_train_0123.sh configs/voc12_resnet50_word/resnet50_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_word/resnet50_split_2
+bash dist_train_0123.sh configs/voc12_resnet50_word/resnet50_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_word/resnet50_split_3
