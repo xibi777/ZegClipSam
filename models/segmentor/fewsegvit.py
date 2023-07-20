@@ -316,8 +316,8 @@ class FewSegViT(FewEncoderDecoder):
         assert patch_features.shape[0] == targets.shape[0]
         patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
         # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
-
-        qs_epoch = torch.zeros_like(qs) # [15, dim]
+        # resnet50: patch (bs, 2048. 512, 512)
+        qs_epoch = torch.zeros_like(qs) # [15, dim] resnet:[15,512] (2048-512) with proj
         num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)
 
         n = 0

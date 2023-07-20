@@ -15,7 +15,7 @@ num_classes = len(base_class)
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
 eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_2_shot_1.txt'
 
-pretrained = '/media/data/ziqin/pretrained/resnet/resnet101-5d3b4d8f.pth'
+pretrained = '/media/data/ziqin/pretrained/resnet/resnet50-19c8e357.pth'
 
 model = dict(
     type='FewSegViT',
@@ -70,6 +70,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=1.),
                                         }))
 
-data = dict(samples_per_gpu=8,
-            workers_per_gpu=8,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 
