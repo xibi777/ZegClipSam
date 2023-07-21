@@ -1,4 +1,4 @@
-python test.py configs/voc12_vit/vit_b_16_fully_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc_vit/vit_16_fully_vpt/iter_5000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_vit/vit_16_fully_vpt/results_10000.txt'
+python test.py configs/voc12_vit/vit_b_16_fully_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc_vit/vit_16_fully_vpt/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_vit/vit_16_fully_vpt/results_10000.txt'
 
 python test.py configs/voc12_vit/vit_b_16_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc12_vit/vit_b_16_split_0/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/shot1_results_10000.txt'
 python test.py configs/voc12_vit/vit_b_16_split_0_512x512_20k_shot_1_seed1.py /media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/shot1_results_10000.txt'

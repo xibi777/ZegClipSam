@@ -321,6 +321,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             ## ADDED:
             # both_proto = self.proto_proj(both_proto)
             # q = both_proto.repeat(bs, 1, 1).transpose(0, 1) # V1 or V2
+            
+            #### how about use Learnable bg??
+            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
+    
             q = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_multihead(both_proto, cls_token)).transpose(0, 1) # V3
@@ -341,7 +346,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # base_qs = self.proto_proj(self.base_qs) #ADDED
             
             #### how about use Learnable bg??
-            base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
+            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            base_qs_epoch = torch.concat((bg_qs, self.base_qs[1:]),dim=0)
             q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!!
@@ -413,7 +419,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
         mask_pred = mask_pred.sigmoid()
-        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
@@ -670,16 +676,27 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             else:
                 both_proto[:] = self.base_qs.clone()
 
-            q = both_proto.repeat(bs, 1, 1)
+            ## learnable q
+            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            q = torch.concat((bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
+            # updated q
+            # q = both_proto.repeat(bs, 1, 1)
+            
             q = self.q_proj(q).transpose(0, 1)
         else:
-            q = self.base_qs.repeat(bs, 1, 1)
+            ## learnable q
+            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            q = torch.concat((bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
+            # updated q
+            # q = both_proto.repeat(bs, 1, 1)
+            
             q = self.q_proj(q).transpose(0, 1)
             self.cur_iter += 1
             mom = self.update_m()
             self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
 
         assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
+        
 
         ### Test the performance of using pseudo labels
         # if not self.training:
