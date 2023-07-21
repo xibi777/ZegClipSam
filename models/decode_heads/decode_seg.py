@@ -323,8 +323,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # q = both_proto.repeat(bs, 1, 1).transpose(0, 1) # V1 or V2
             
             #### how about use Learnable bg??
-            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
+            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            both_proto = torch.concat((self.bg_qs, both_proto[1:]),dim=0)
     
             q = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
@@ -346,8 +346,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # base_qs = self.proto_proj(self.base_qs) #ADDED
             
             #### how about use Learnable bg??
-            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            base_qs_epoch = torch.concat((bg_qs, self.base_qs[1:]),dim=0)
+            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
             q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!!
@@ -677,16 +677,16 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
                 both_proto[:] = self.base_qs.clone()
 
             ## learnable q
-            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            q = torch.concat((bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
+            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            q = torch.concat((self.bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
             # updated q
             # q = both_proto.repeat(bs, 1, 1)
             
             q = self.q_proj(q).transpose(0, 1)
         else:
             ## learnable q
-            bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            q = torch.concat((bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
+            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
+            q = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0).repeat(bs, 1, 1)
             # updated q
             # q = both_proto.repeat(bs, 1, 1)
             
