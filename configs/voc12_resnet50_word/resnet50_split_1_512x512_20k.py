@@ -4,7 +4,7 @@ _base_ = [
 ]
 
 img_size = 512
-in_channels = 768 # 512?
+in_channels = 2048
 out_indices = [11]
 
 base_class = [0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
