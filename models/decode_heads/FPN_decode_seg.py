@@ -211,7 +211,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         self.register_buffer("base_qs", torch.randn((len(self.seen_idx), embed_dims)))
         
         ## bg
-        self.bg_qs = nn.Parameter(torch.randn(1, embed_dims))
+        # self.bg_qs = nn.Parameter(torch.randn(1, embed_dims))
 
         self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
@@ -342,11 +342,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # base_qs = self.proto_proj(self.base_qs) #ADDED
             
             #### how about use Learnable bg??
-            base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
-            q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
+            # base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
+            # q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!!
-            # q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
             
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             ## update self.base_qs

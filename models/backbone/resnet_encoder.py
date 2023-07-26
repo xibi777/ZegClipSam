@@ -342,12 +342,14 @@ class LoRAResNet(nn.Module):
         global_embedding = self.avgpool(x).squeeze()
         visual_embedding = x
         
-        # visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
         features.append(visual_embedding)
         # x = x.view(x.size(0), -1) # (bs, )
         # x = self.fc(x) + self.dropout_fc(self.lora_fc_up(self.selector(self.lora_fc_down(x)))) * self.scale
         ## get embedding:
-        # global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        if global_embedding.shape[0] == 2048:
+            global_embedding = global_embedding.unsqueeze(0)
+        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
         proto_embedding = visual_embedding ##ADDED_Norm, fake proto
         
         outs.append(tuple(features))

@@ -210,7 +210,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         self.register_buffer("cur_iter", torch.Tensor([0]))
         self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
         ## bg
-        self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
+        # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
 
         self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
@@ -274,7 +274,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
         else:
             # REGISTER NOVEL: concat the novel queries in the right position
-            both_proto = torch.zeros([len(self.all_idx), self.dim]).to(patch_token[0].device)
+            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
             if novel_queries is not None:
                 both_proto[self.seen_idx] = self.base_qs.clone()
                 # print('Novel!:', novel_queries.sum(-1))
@@ -324,7 +324,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             
             #### how about use Learnable bg??
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            both_proto = torch.concat((self.bg_qs, both_proto[1:]),dim=0)
+            # both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
     
             q = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
@@ -347,11 +347,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             
             #### how about use Learnable bg??
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            base_qs_epoch = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0)
-            q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
+            # base_qs_epoch = torch.concat((bg_qs, self.base_qs[1:]),dim=0)
+            # q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!!
-            # q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
             
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             ## update self.base_qs
@@ -592,7 +592,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         self.register_buffer("cur_iter", torch.Tensor([0]))
         self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
         ## bg
-        self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
+        # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
 
         self.q_proj = nn.Linear(in_channels, embed_dims)
 
@@ -678,17 +678,17 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
 
             ## learnable q
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            q = torch.concat((self.bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
+            # q = torch.concat((bg_qs, both_proto[1:]),dim=0).repeat(bs, 1, 1)
             # updated q
-            # q = both_proto.repeat(bs, 1, 1)
-            
+            q = both_proto.repeat(bs, 1, 1)
+    
             q = self.q_proj(q).transpose(0, 1)
         else:
             ## learnable q
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            q = torch.concat((self.bg_qs, self.base_qs[1:]),dim=0).repeat(bs, 1, 1)
+            # q = torch.concat((bg_qs, self.base_qs[1:]),dim=0).repeat(bs, 1, 1)
             # updated q
-            # q = both_proto.repeat(bs, 1, 1)
+            q = both_proto.repeat(bs, 1, 1)
             
             q = self.q_proj(q).transpose(0, 1)
             self.cur_iter += 1

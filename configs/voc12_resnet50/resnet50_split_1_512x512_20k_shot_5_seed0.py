@@ -13,7 +13,7 @@ both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
 num_classes = len(base_class)
 
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
-eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_1_shot_1.txt'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_1_shot_5_seed0.txt'
 
 pretrained = '/media/data/ziqin/pretrained/resnet/resnet50-19c8e357.pth'
 
@@ -50,7 +50,7 @@ model = dict(
     novel_class = novel_class,
     both_class = both_class,
     split = 1,
-    shot = 1,
+    shot = 5,
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,
     ft_backbone = False,
@@ -64,10 +64,10 @@ lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
 
 
 optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01, 
-        paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=10.0),
+        paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=1.0),
                                         'norm': dict(decay_mult=0.),
                                         'ln': dict(decay_mult=0.),
-                                        'head': dict(lr_mult=10.),
+                                        'head': dict(lr_mult=1.),
                                         }))
 
 data = dict(samples_per_gpu=4,

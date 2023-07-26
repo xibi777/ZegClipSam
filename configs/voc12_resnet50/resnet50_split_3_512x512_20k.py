@@ -64,10 +64,10 @@ lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
 
 
 optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01, 
-        paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=1.0),
+        paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=10.0),
                                         'norm': dict(decay_mult=0.),
                                         'ln': dict(decay_mult=0.),
-                                        'head': dict(lr_mult=1.),
+                                        'head': dict(lr_mult=10.),
                                         }))
 
 data = dict(samples_per_gpu=4,
