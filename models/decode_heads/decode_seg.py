@@ -413,7 +413,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.0 is the best   
             return out["pred"]   
         return out
 
@@ -688,9 +688,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
             # q = torch.concat((bg_qs, self.base_qs[1:]),dim=0).repeat(bs, 1, 1)
             # updated q
-            q = both_proto.repeat(bs, 1, 1)
-            
-            q = self.q_proj(q).transpose(0, 1)
+            q = self.q_proj(self.base_qs.repeat(bs, 1, 1)).transpose(0, 1)
             self.cur_iter += 1
             mom = self.update_m()
             self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)

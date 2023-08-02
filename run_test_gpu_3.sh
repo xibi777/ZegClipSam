@@ -1,3 +1,5 @@
+# python test.py configs/voc12_resnet50/resnet50_fully_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_fully/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_fully/results_10000.txt'
+
 python test.py configs/voc12_resnet50/resnet50_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/shot1_results_10000.txt'
 python test.py configs/voc12_resnet50/resnet50_split_0_512x512_20k_shot_1_seed1.py /media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/shot1_results_10000.txt'
 python test.py configs/voc12_resnet50/resnet50_split_0_512x512_20k_shot_1_seed2.py /media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/iter_10000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/voc_resnet50/resnet50_split_0/shot1_results_10000.txt'

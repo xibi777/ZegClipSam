@@ -5,6 +5,7 @@ _base_ = [
 
 img_size = 512
 in_channels = 2048
+channels = 512
 out_indices = [11]
 
 base_class = [0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -32,13 +33,13 @@ model = dict(
         in_channels=in_channels,
         seen_idx=base_class,
         all_idx=both_class,
-        channels=in_channels,
+        channels=channels,
         num_classes=num_classes,
         num_layers=3,
         num_heads=8,
         use_proj=False,
         use_stages=len(out_indices),
-        embed_dims=in_channels,
+        embed_dims=channels,
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
             mask_weight=20.0,

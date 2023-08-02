@@ -204,7 +204,9 @@ class FewSegViT(FewEncoderDecoder):
             image, label = self.val_supp_transform(image_ori, label_ori)
             # image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
             try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
-            except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
+            except: 
+                try: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
+                except: image = image.unsqueeze(0).to(self.backbone.fc.weight.device)
             # label[label==0] = 255 ## ignore the ground truth label
             # label[label!=255] -= 1
             
