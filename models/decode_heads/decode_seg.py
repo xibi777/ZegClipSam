@@ -419,7 +419,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
         mask_pred = mask_pred.sigmoid()
-        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,0] = mask_pred[:,0] - 0.2 #reduce background, for learnable bg use add bg 0.2
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
@@ -755,13 +755,15 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor? Do I need to extra reduce the logtis on background?
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor? Do I need to extra reduce the logtis on background?
             return out["pred"]                  
         return out
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0):
         mask_pred = mask_pred.sigmoid()
-        # print(seen_idx)
+        print(mask_pred.shape)
+        print(seen_idx)
+        print(weight)
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 

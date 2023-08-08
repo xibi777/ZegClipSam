@@ -144,7 +144,7 @@ def main():
     # if hasattr(model, 'text_encoder'):
     #     model.text_encoder.init_weights()
 
-    model.backbone = torch.nn.SyncBatchNormx.convert_sync_batchnorm(model.backbone) #!!!!!!!!!!
+    # model.backbone = torch.nn.SyncBatchNormx.convert_sync_batchnorm(model.backbone) #!!!!!!!!!!
     # SyncBN is not support for DP
     # if not distributed:
     #     warnings.warn(
