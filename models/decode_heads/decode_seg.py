@@ -350,7 +350,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # base_qs_epoch = torch.concat((bg_qs, self.base_qs[1:]),dim=0)
             # q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
-            #### the momentum updated bg !!!!!!!!
+            #### the momentum updated bg !!!!!!!! coco: 61,
             q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
             
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)

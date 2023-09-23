@@ -17,6 +17,7 @@ import math
 from functools import partial
 from mmcv.runner import auto_fp16, force_fp32
 import matplotlib.pyplot as plt
+from math import cos, pi
 
 from timm.models.layers import trunc_normal_
 import matplotlib.pyplot as plt
@@ -324,6 +325,8 @@ class FakeHeadSeg(BaseDecodeHead):
         self.proj_norm = proj_norm
 
         delattr(self, 'conv_seg')
+        self.register_buffer("cur_iter", torch.Tensor([0]))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
 
         # self.withRD = withRD
         # if withRD:
@@ -384,24 +387,25 @@ class FakeHeadSeg(BaseDecodeHead):
     def forward_test(self, inputs, img_metas, test_cfg, self_training):
         return self.forward(inputs, self_training)
 
-
-    def forward(self, inputs_both, self_training=None):
-        patch_tokens = inputs_both[0][0][0] #(bs, dim, 1024)
-        cls_token = inputs_both[0][1]
-        text_tokens = inputs_both[1]
+    def forward(self, inputs, qs_epoch=None, novel_queries=None):
+        patch_tokens = inputs[0][0][0]
 
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
 
-        # inputs[0].retain_grad() ##get grad
-        # runner.model.module.backbone.prompt_proj.weight.grad
-
-        # if self.withRD:
-        #     q = self.q_proj(self.get_qs(text_tokens, cls_token)) #bcd
-        #     pred_logits = torch.einsum("bdn,bcd->bcn", patch_tokens, q)
-        # else:
-        #     q = self.q_proj(text_tokens.to(patch_tokens.dtype))
-        #     pred_logits = torch.einsum("bdn,cd->bcn", patch_tokens, q)
+        if self.training:
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
+        else:
+            # REGISTER NOVEL: concat the novel queries in the right position
+            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_tokens[0].device)
+            if novel_queries is not None:
+                both_proto[self.seen_idx] = self.base_qs.clone()
+                # print('Novel!:', novel_queries.sum(-1))
+                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+            else:
+                both_proto[:] = self.base_qs.clone()
+            cls_token = inputs[0][1]        
         
         if self.decode_type is not None:
             if self.decode_type=='mlp':
@@ -414,8 +418,17 @@ class FakeHeadSeg(BaseDecodeHead):
                 assert AttributeError('Donot support this decode type')
         else:
             pass 
-            
-        q = self.q_proj(self.get_qs(text_tokens, cls_token, self.rd_type)) #bcd , need normalize??
+        
+        if not self.training:
+            q = self.q_proj(self.get_qs(both_proto, cls_token, self.rd_type)) #bcd , need normalize??
+        else:
+            q = self.q_proj(self.get_qs(self.base_qs, cls_token, self.rd_type))
+            self.cur_iter += 1
+            mom = self.update_m()
+            self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
+
+        assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
+        
         pred_logits = torch.einsum("bdn,bcd->bcn", patch_tokens, q) # matching directly
         c = pred_logits.shape[1]
 
@@ -426,16 +439,15 @@ class FakeHeadSeg(BaseDecodeHead):
                                         mode='bilinear', align_corners=False)
                                           
         out = {"pred_masks": pred}
-
         
         if self.training:
-            return out
+            out["qs_base"] = q.transpose(0, 1).unsqueeze(0) #(1, bs, c, 768)
+            # outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
+            # out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            if self_training:
-                out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx) #(bs, 20, 224, 224)
-            else:
-                out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2)
-            return out["pred"]                  
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
+            return out["pred"]   
+        return out                 
         
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0):
         mask_pred = mask_pred.sigmoid()
@@ -544,4 +556,30 @@ class FakeHeadSeg(BaseDecodeHead):
             loss['acc_seg'] = accuracy(seg_logit["pred_masks"], seg_label, ignore_index=self.ignore_index)
             return loss
         
+        
+    def update_m(self, end_m=1.0, base_m=0.996):
+        max_iter = 20000
+        m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
+        return m
+    
+    def forward_test(self, inputs, img_metas, test_cfg, novel_queries=None):
+        # get the target of each cliped region
+        # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations')
+        # self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
+        # self.gt_label = np.unique(self.gt_ann)
+        # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
+        # self.gt_label[self.gt_label!=255] -= 1
+        # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
+        if novel_queries is not None:
+            return self.forward(inputs, novel_queries=novel_queries)
+        else:
+            return self.forward(inputs)
+    
+    def forward_train(self, inputs, img_metas, gt_semantic_seg, qs_epoch, train_cfg):
+        seg_logits = self.forward(inputs, qs_epoch=qs_epoch)
+
+        gt_semantic_seg[gt_semantic_seg==-1] = 255
+        losses = self.losses(seg_logits, gt_semantic_seg)
+
+        return losses    
 

@@ -292,7 +292,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "configs/coco2014/dino_b_16_fully_512x512_20k_12_50.py",
+                "configs/coco2014_vit_fakeseg_attn/vit_b_16_split_0_512x512_40k_12_50.py",
                 "--work-dir", "./work_dirs/coco/",
             ]
         },
