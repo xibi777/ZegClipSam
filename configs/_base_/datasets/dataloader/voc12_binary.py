@@ -150,7 +150,7 @@ class BinaryPascalVOCDataset20(CustomDataset):
         cls_num_img = int(total_num_img/self.num_novel) # voc:200, coco:50
 
         for filename in f:
-            n_cls = self.num_novel*self.split + int(n/cls_num_img) #200!
+            n_cls = self.num_novel*self.split + int(n/cls_num_img) + 1 #200! ## +1 for including bg cls
             filename = filename.strip('\n')
             label_path = '/media/data/ziqin/data_fss/VOC2012/Annotations/' + str(filename) + '.png'
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
@@ -158,7 +158,15 @@ class BinaryPascalVOCDataset20(CustomDataset):
             # label[label!=255] -= 1
             binary_label = np.zeros_like(label)
             binary_label[label == n_cls] = 1
-            binary_label[label==255] = 255
+            
+            ## different settings
+            # If set the other class into bg and remain ignore as 255 as GFS-Seg setting
+            binary_label[label==255] = 255 
+            # If set the other class into ingore 255 and remain bg as 0
+            # binary_label[label!=n_cls] = 255
+            # binary_label[label==0] = 0
+            # If set the other pixels all into bg: pass
+            
             binary_labels.append(binary_label)
             n+=1
         return binary_labels
