@@ -6,6 +6,7 @@ from models.segmentor.freeseg import FreeSeg
 from models.segmentor.binary_fewsegvit import BinaryFewSegViT
 from models.segmentor.cross_fewsegvit import CrossFewSegViT
 from models.segmentor.caplsegvit import CAPLSegViT
+from models.segmentor.fewsegvit_fake import FakeFewSegViT
 
 from models.backbone.dino_encoder import BaseVisionTransformer, PromptVisionTransformer
 from models.backbone.mae_encoder import PromptMaskedAutoencoderViT

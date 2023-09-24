@@ -19,7 +19,7 @@ num_classes = len(base_class)
 pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
 model = dict(
-    type='FewSegViT',
+    type='FakeFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(

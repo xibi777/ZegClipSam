@@ -22,6 +22,7 @@ from math import cos, pi
 from timm.models.layers import trunc_normal_
 import matplotlib.pyplot as plt
 from mmseg.models.losses import accuracy
+import itertools
 
 from models.decode_heads.utils import positional_encoding
 
@@ -299,6 +300,10 @@ class FakeHeadSeg(BaseDecodeHead):
         dim = embed_dims
         input_proj = []
         proj_norm = []
+        
+        self.novel_idx = self.all_idx.copy()
+        for i_idx in self.seen_idx:
+            self.novel_idx.remove(i_idx)
 
         self.unseen_idx = self.all_idx.copy()
         for i_idx in self.seen_idx:
@@ -366,46 +371,12 @@ class FakeHeadSeg(BaseDecodeHead):
             elif isinstance(m, nn.LayerNorm):
                 constant_init(m, val=1.0, bias=0.0)
 
-    def forward_train(self, inputs, img_metas, gt_semantic_seg, train_cfg, self_training=False, st_mask=None):
-        seg_logits = self.forward(inputs)
 
-        if self_training:
-            pseudo_semantic_masks = seg_logits['pred_masks'].clone().detach().sigmoid()
-            pseudo_semantic_masks[:, self.seen_idx, :, :] = -1
-            pseudo_semantic_seg = pseudo_semantic_masks.argmax(dim=1).unsqueeze(1)
-            # generate pseudo labels for "transductive" setting
-            gt_semantic_seg[gt_semantic_seg==-1] = pseudo_semantic_seg[gt_semantic_seg==-1]
-            gt_semantic_seg[gt_semantic_seg==-1] = 255
-            losses = self.losses(seg_logits, gt_semantic_seg)
-
-        else:
-            gt_semantic_seg[gt_semantic_seg==-1] = 255
-            losses = self.losses(seg_logits, gt_semantic_seg)
-
-        return losses
-
-    def forward_test(self, inputs, img_metas, test_cfg, self_training):
-        return self.forward(inputs, self_training)
-
-    def forward(self, inputs, qs_epoch=None, novel_queries=None):
-        patch_tokens = inputs[0][0][0]
+    def forward(self, inputs, gt_semantic_seg, novel_clip_feats=None):
+        patch_tokens = inputs[0][0][0] #(bs, 768, 32, 32)
 
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
-
-        if self.training:
-            cls_token = inputs[0][1]
-            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
-        else:
-            # REGISTER NOVEL: concat the novel queries in the right position
-            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_tokens[0].device)
-            if novel_queries is not None:
-                both_proto[self.seen_idx] = self.base_qs.clone()
-                # print('Novel!:', novel_queries.sum(-1))
-                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
-            else:
-                both_proto[:] = self.base_qs.clone()
-            cls_token = inputs[0][1]        
         
         if self.decode_type is not None:
             if self.decode_type=='mlp':
@@ -413,12 +384,50 @@ class FakeHeadSeg(BaseDecodeHead):
                 patch_tokens = patch_tokens.transpose(2,1)
             elif self.decode_type=='attn':    
                 patch_tokens_list, _ = self.decoder(patch_tokens.transpose(2, 1), patch_tokens.transpose(2, 1)) # q/k/v=patch embedding
-                patch_tokens = patch_tokens_list[-1].transpose(2,1)
+                patch_tokens = patch_tokens_list[-1].transpose(2,1) #(2, 768, 32*32)
             else:
                 assert AttributeError('Donot support this decode type')
         else:
             pass 
         
+        # get qs_epoch
+        if self.training:
+            qs_epoch = self.extract_base_proto_epoch(self.base_qs, patch_tokens.reshape(bs, dim, p, p).clone().detach(), gt_semantic_seg.squeeze())
+        else:
+            if not hasattr(self, 'novel_queries'):
+                # get the novel patch embeddings after decoder:
+                if self.decode_type is not None:
+                    if self.decode_type=='mlp':
+                        novel_patch_tokens = self.decoder(novel_clip_feats.transpose(2,1))
+                        novel_patch_tokens = novel_patch_tokens.transpose(2,1)
+                    elif self.decode_type=='attn':    
+                        novel_patch_tokens_list, _ = self.decoder(novel_clip_feats.transpose(2, 1), novel_clip_feats.transpose(2, 1)) # q/k/v=patch embedding
+                        novel_patch_tokens = novel_patch_tokens_list[-1].transpose(2,1)
+                    else:
+                        assert AttributeError('Donot support this decode type')
+                else:
+                    pass
+                print('\n' + '------------Registering the prototypes of novel classes-----------')
+                self.novel_queries = self.extract_novel_proto(novel_patch_tokens)
+                # print('------------Registering the aug prototypes of novel classes-----------')
+                # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                print('Done! The dimension of novel prototypes is: ', self.novel_queries.shape)
+        
+        if self.training:
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
+        else:
+            # REGISTER NOVEL: concat the novel queries in the right position
+            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_tokens[0].device)
+            if self.novel_queries is not None:
+                both_proto[self.seen_idx] = self.base_qs.clone()
+                # print('Novel!:', novel_queries.sum(-1))
+                both_proto[self.novel_idx] = torch.from_numpy(self.novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+            else:
+                both_proto[:] = self.base_qs.clone()
+            cls_token = inputs[0][1] #query set        
+
+        # update base_qs
         if not self.training:
             q = self.q_proj(self.get_qs(both_proto, cls_token, self.rd_type)) #bcd , need normalize??
         else:
@@ -445,7 +454,7 @@ class FakeHeadSeg(BaseDecodeHead):
             # outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             # out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.0 is the best   
             return out["pred"]   
         return out                 
         
@@ -562,7 +571,7 @@ class FakeHeadSeg(BaseDecodeHead):
         m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
         return m
     
-    def forward_test(self, inputs, img_metas, test_cfg, novel_queries=None):
+    def forward_test(self, inputs, img_metas, test_cfg, novel_clip_feats=None):
         # get the target of each cliped region
         # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations')
         # self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
@@ -570,16 +579,71 @@ class FakeHeadSeg(BaseDecodeHead):
         # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
         # self.gt_label[self.gt_label!=255] -= 1
         # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
-        if novel_queries is not None:
-            return self.forward(inputs, novel_queries=novel_queries)
+        gt_semantic_seg = img_metas['gt_semantic_seg']
+        if novel_clip_feats is not None:
+            return self.forward(inputs, gt_semantic_seg, novel_clip_feats=novel_clip_feats)
         else:
-            return self.forward(inputs)
+            return self.forward(inputs, gt_semantic_seg)
     
-    def forward_train(self, inputs, img_metas, gt_semantic_seg, qs_epoch, train_cfg):
-        seg_logits = self.forward(inputs, qs_epoch=qs_epoch)
-
+    def forward_train(self, inputs, img_metas, gt_semantic_seg, train_cfg):
+        seg_logits = self.forward(inputs, gt_semantic_seg)
         gt_semantic_seg[gt_semantic_seg==-1] = 255
         losses = self.losses(seg_logits, gt_semantic_seg)
-
         return losses    
+    
+    def extract_base_proto_epoch(self, qs, patch_features, targets):
+        ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
+        assert patch_features.shape[0] == targets.shape[0]
+        patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
+        # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
+        # resnet50: patch (bs, 2048. 512, 512)
+        qs_epoch = torch.zeros_like(qs) # [15, dim] resnet:[15,512] (2048-512) with proj
+        num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)
 
+        n = 0
+        for targets_per_image in targets:
+            # for n th image in a batch
+            gt_cls = targets_per_image.unique()
+            gt_cls = gt_cls[gt_cls != 255]
+            if len(gt_cls) != 0:
+                for cls in gt_cls:
+                    num_base[cls] += 1
+                    binary_mask = torch.zeros_like(patch_features[0,0])
+                    binary_mask[targets_per_image == cls] = 1
+                    proto_cls = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
+                    qs_epoch[cls, :] = proto_cls
+            n += 1
+
+        # norm for each base classes
+        qs_epoch[num_base!=0] = qs_epoch[num_base!=0] / num_base[num_base!=0].unsqueeze(-1) #(15, 768)
+        return qs_epoch
+
+
+    def extract_novel_proto(self, novel_patch_embeddings):
+        ## load Image and Annotations, no augmentation but how to handle the crop??
+        ## seed from GFS-Seg: 5
+        way, shot, dim, p, p = novel_patch_embeddings.size()
+        all_novel_queries = np.zeros([way, 768]) # [way, dim]
+
+        # generate label for each image
+        labels = [[i]*shot for i in range(way)]
+        labels = list(itertools.chain.from_iterable(labels))
+
+        n = 0
+        for patch_embeddings in novel_patch_embeddings.reshape(way*shot, dim, p, p):
+            # obtain the mask
+            label = F.interpolate(label.unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
+            binary_label = torch.zeros_like(label)
+            binary_label[label == self.novel_class[labels[n]]] = 1
+            assert binary_label.sum() != 0
+            # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
+            proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
+
+            # print('proto:', str(int(n/num_each_supp))+str(labels[n]))
+            all_novel_queries[labels[n], :] += proto.clone().cpu().numpy()
+            n += 1
+        
+        # norm for 1shot or 5shot
+        all_novel_queries /= shot
+
+        return all_novel_queries

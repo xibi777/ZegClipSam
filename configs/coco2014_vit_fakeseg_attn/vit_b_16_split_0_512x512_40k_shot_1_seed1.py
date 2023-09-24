@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/coco2014_512x512_split_0.py',
+    '../_base_/models/FewSegViT.py', '../_base_/datasets/coco2014_512x512_split_0.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
 
@@ -24,7 +24,7 @@ eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentat
 pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
 model = dict(
-    type='FewSegViT',
+    type='FakeFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(

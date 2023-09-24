@@ -25,7 +25,7 @@ eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
 eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentation/val_supp_split_1_shot_1.txt'
 
 model = dict(
-    type='FewSegViT',
+    type='FakeFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
