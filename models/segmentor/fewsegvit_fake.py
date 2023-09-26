@@ -137,11 +137,11 @@ class FakeFewSegViT(FewEncoderDecoder):
         losses.update(add_prefix(loss_decode, 'decode'))
         return losses
         
-    def _decode_head_forward_test(self, x, img_metas, novel_clip_feats=None):
+    def _decode_head_forward_test(self, x, img_metas, novel_clip_feats=None, novel_labels=None):
         """Run forward function and calculate loss for decode head in
         inference."""
         if novel_clip_feats is not None:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_clip_feats)
+            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_clip_feats, novel_labels)
         else:
             seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg)
         return seg_logits
@@ -156,7 +156,7 @@ class FakeFewSegViT(FewEncoderDecoder):
 
     def extract_feat(self, img):
         """Extract features from images."""
-        visual_feat = self.backbone(img)
+        visual_feat = self.backbone(img) #without l2norm
         return visual_feat
 
     def forward_train(self, img, img_metas, gt_semantic_seg):
@@ -185,10 +185,10 @@ class FakeFewSegViT(FewEncoderDecoder):
         feat.append(visual_feat)
         
         if len(self.base_class) != len(self.both_class): #generalized few-shot setting
-            if not hasattr(self, 'novel_queries'):
+            if not hasattr(self.decode_head, 'novel_queries'):
                 print('\n' + '------------Registering the prototypes of novel classes-----------')
-                novel_clip_feats = self.extract_novel_feats(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
-                out = self._decode_head_forward_test(feat, img_metas, novel_clip_feats)
+                novel_clip_feats, novel_labels = self.extract_novel_feats(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                out = self._decode_head_forward_test(feat, img_metas, novel_clip_feats, novel_labels)
             else:
                 out = self._decode_head_forward_test(feat, img_metas)
         out = resize(
@@ -248,6 +248,7 @@ class FakeFewSegViT(FewEncoderDecoder):
 
     def extract_novel_feats(self, dir, path, way, shot):
         clip_patch_embeddings = []
+        labels = []
         
         n = 0
         f = open(path, 'r')
@@ -291,10 +292,13 @@ class FakeFewSegViT(FewEncoderDecoder):
             _, dim, p, p = patch_embeddings.size()
             # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
             clip_patch_embeddings.append(patch_embeddings.squeeze())
+            labels.append(label.squeeze())
             
         clip_patch_embeddings = torch.stack(clip_patch_embeddings, dim=0) #(way*shot, dim, 32, 32)
         clip_patch_embeddings = clip_patch_embeddings.reshape(way, shot, dim, p, p)
+        labels = torch.stack(labels, dim=0) #(way*shot, 512, 512)
+        labels = labels.reshape(way, shot, 512, 512)
         
-        return  #()
+        return  clip_patch_embeddings, labels
             
 

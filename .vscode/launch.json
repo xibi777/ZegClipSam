@@ -564,5 +564,38 @@
                 "--eval", "mIoU",
             ]
         },
+
+        {
+            "name": "test_coco_fake",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/coco2014_vit_fakeseg_attn/vit_b_16_split_0_512x512_40k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_fake_attn/vit_b_16_split_0/iter_40000.pth",
+                "--eval", "mIoU",
+            ]
+        },      
+        {
+            "name": "train_voc_fake_attn",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/voc12_vit_fake_attn/vit_b_16_split_0_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs/voc_vit",
+            ]
+        },
+
     ]
 }

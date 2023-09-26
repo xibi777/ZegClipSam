@@ -372,12 +372,46 @@ class FakeHeadSeg(BaseDecodeHead):
                 constant_init(m, val=1.0, bias=0.0)
 
 
-    def forward(self, inputs, gt_semantic_seg, novel_clip_feats=None):
+    def forward(self, inputs, gt_semantic_seg=None, novel_clip_feats=None, novel_labels=None):
         patch_tokens = inputs[0][0][0] #(bs, 768, 32, 32)
-
+        cls_token = inputs[0][1]
+        
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
         
+        # get qs_epoch
+        # calculate relationship descriptor RD=qclsq, q is from average targeted patch embeddings
+        if self.training:
+            qs_epoch = self.extract_base_proto_epoch(self.base_qs, patch_tokens.reshape(bs, dim, p, p).clone().detach(), gt_semantic_seg.squeeze())
+        else:
+            if not hasattr(self, 'both_proto'):
+                if self.novel_idx is not None: # few-shot
+                    way, shot, _, _, _ = novel_clip_feats.size()
+                    novel_clip_feats = novel_clip_feats.reshape(way*shot, dim ,p*p)
+                    print('\n' + '------------Registering the prototypes of novel classes-----------')
+                    self.novel_queries = self.extract_novel_proto(novel_clip_feats.reshape(way, shot, dim, p, p), novel_labels)
+                    # print('------------Registering the aug prototypes of novel classes-----------')
+                    # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                    print('Done! The dimension of novel prototypes is: ', self.novel_queries.shape)
+                    # REGISTER NOVEL: concat the novel queries in the right position
+                    self.both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_tokens[0].device)
+                    self.both_proto[self.seen_idx] = self.base_qs.clone()
+                    self.both_proto[self.novel_idx] = torch.from_numpy(self.novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+                else: #fully supervised
+                    self.both_proto[:] = self.base_qs.clone()
+             
+        # get rd and update base_qs
+        if self.training:
+            q = self.q_proj(self.get_qs(self.base_qs, cls_token, self.rd_type))
+            self.cur_iter += 1
+            mom = self.update_m()
+            self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
+        else:
+            q = self.q_proj(self.get_qs(self.both_proto, cls_token, self.rd_type)) #bcd , need normalize??
+
+        assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
+               
+        # refine the patch embeddings        
         if self.decode_type is not None:
             if self.decode_type=='mlp':
                 patch_tokens = self.decoder(patch_tokens.transpose(2,1))
@@ -390,60 +424,12 @@ class FakeHeadSeg(BaseDecodeHead):
         else:
             pass 
         
-        # get qs_epoch
-        if self.training:
-            qs_epoch = self.extract_base_proto_epoch(self.base_qs, patch_tokens.reshape(bs, dim, p, p).clone().detach(), gt_semantic_seg.squeeze())
-        else:
-            if not hasattr(self, 'novel_queries'):
-                # get the novel patch embeddings after decoder:
-                if self.decode_type is not None:
-                    if self.decode_type=='mlp':
-                        novel_patch_tokens = self.decoder(novel_clip_feats.transpose(2,1))
-                        novel_patch_tokens = novel_patch_tokens.transpose(2,1)
-                    elif self.decode_type=='attn':    
-                        novel_patch_tokens_list, _ = self.decoder(novel_clip_feats.transpose(2, 1), novel_clip_feats.transpose(2, 1)) # q/k/v=patch embedding
-                        novel_patch_tokens = novel_patch_tokens_list[-1].transpose(2,1)
-                    else:
-                        assert AttributeError('Donot support this decode type')
-                else:
-                    pass
-                print('\n' + '------------Registering the prototypes of novel classes-----------')
-                self.novel_queries = self.extract_novel_proto(novel_patch_tokens)
-                # print('------------Registering the aug prototypes of novel classes-----------')
-                # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
-                print('Done! The dimension of novel prototypes is: ', self.novel_queries.shape)
-        
-        if self.training:
-            cls_token = inputs[0][1]
-            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
-        else:
-            # REGISTER NOVEL: concat the novel queries in the right position
-            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_tokens[0].device)
-            if self.novel_queries is not None:
-                both_proto[self.seen_idx] = self.base_qs.clone()
-                # print('Novel!:', novel_queries.sum(-1))
-                both_proto[self.novel_idx] = torch.from_numpy(self.novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
-            else:
-                both_proto[:] = self.base_qs.clone()
-            cls_token = inputs[0][1] #query set        
-
-        # update base_qs
-        if not self.training:
-            q = self.q_proj(self.get_qs(both_proto, cls_token, self.rd_type)) #bcd , need normalize??
-        else:
-            q = self.q_proj(self.get_qs(self.base_qs, cls_token, self.rd_type))
-            self.cur_iter += 1
-            mom = self.update_m()
-            self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
-
-        assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
-        
+        # get prediction and loss
         pred_logits = torch.einsum("bdn,bcd->bcn", patch_tokens, q) # matching directly
         c = pred_logits.shape[1]
-
         pred_logits = pred_logits.reshape(bs, c, p, p)
         # pred_logits = patch_tokens @ text_token.t()
-        
+
         pred = F.interpolate(pred_logits, size=(self.image_size, self.image_size),
                                         mode='bilinear', align_corners=False)
                                           
@@ -486,7 +472,7 @@ class FakeHeadSeg(BaseDecodeHead):
         bs, _ = cls.shape
         q = q.expand(bs, -1, -1)
         if type == 'qclsq':# q = [q.cls, q]
-            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 # added or not?
+            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 10 # added or not?
             q_ = torch.concat((q1, q), dim=-1)
         elif type == 'qcls_norm_q': # maybe need an scalor
             q_ = torch.einsum("bd,bcd->bcd", cls, q) # for norm, do it need *100????????
@@ -495,7 +481,7 @@ class FakeHeadSeg(BaseDecodeHead):
             q_ = q_ - q_norm
             q_ = torch.concat((q_, q), dim=-1)
         elif type == 'qcls': # maybe need an scalor
-            q_ = torch.einsum("bd,bcd->bcd", cls, q) * 100
+            q_ = torch.einsum("bd,bcd->bcd", cls, q) * 10
         elif type == 'qcls_norm': # maybe need an scalor
             q_ = torch.einsum("bd,bcd->bcd", cls, q) # for norm, do it need *100????????
             # norm the rd between all c classes
@@ -508,7 +494,7 @@ class FakeHeadSeg(BaseDecodeHead):
             q_ = q.to(cls.dtype)
         elif type == 'combine':
             # qcls,|q-cls|,q,cls
-            qcls = torch.einsum("bd,bcd->bcd", cls, q) * 100
+            qcls = torch.einsum("bd,bcd->bcd", cls, q) * 10
             q_cls = torch.abs(cls.expand(C, -1, -1).permute(1, 0, 2) - q)
             q = q.to(cls.dtype)
             cls = cls.expand(C, -1, -1).permute(1, 0, 2)
@@ -535,13 +521,13 @@ class FakeHeadSeg(BaseDecodeHead):
             if self.training:
                 q_ = q_[:, self.seen_idx, :] # only use the seen part, but class mean is calculated from all classes
         elif type == 'qcls_pca': # maybe need an scalor
-            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100
+            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 10
             _, _, v = torch.pca_lowrank(q1, q=10, center=True, niter=2)
             q_ = torch.bmm(q1, v[:, :, :])
             # a = q_pca.squeeze() / torch.norm(q_pca.squeeze(), dim=-1, keepdim=True)
             # similarity = torch.mm(a, a.T)
         elif type == 'qclsq_pca': # maybe need an scalor
-            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100
+            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 10
             _, _, v = torch.pca_lowrank(q1, q=10, center=True, niter=2)
             q1_pca = torch.bmm(q1, v[:, :, :])
             q_ = torch.concat((q1_pca, q), dim=-1) # q + 512
@@ -571,7 +557,7 @@ class FakeHeadSeg(BaseDecodeHead):
         m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
         return m
     
-    def forward_test(self, inputs, img_metas, test_cfg, novel_clip_feats=None):
+    def forward_test(self, inputs, img_metas, test_cfg, novel_clip_feats=None, novel_labels=None):
         # get the target of each cliped region
         # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations')
         # self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
@@ -579,11 +565,10 @@ class FakeHeadSeg(BaseDecodeHead):
         # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
         # self.gt_label[self.gt_label!=255] -= 1
         # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
-        gt_semantic_seg = img_metas['gt_semantic_seg']
         if novel_clip_feats is not None:
-            return self.forward(inputs, gt_semantic_seg, novel_clip_feats=novel_clip_feats)
+            return self.forward(inputs, novel_clip_feats=novel_clip_feats, novel_labels=novel_labels)
         else:
-            return self.forward(inputs, gt_semantic_seg)
+            return self.forward(inputs)
     
     def forward_train(self, inputs, img_metas, gt_semantic_seg, train_cfg):
         seg_logits = self.forward(inputs, gt_semantic_seg)
@@ -619,11 +604,12 @@ class FakeHeadSeg(BaseDecodeHead):
         return qs_epoch
 
 
-    def extract_novel_proto(self, novel_patch_embeddings):
+    def extract_novel_proto(self, novel_patch_embeddings, novel_labels):
         ## load Image and Annotations, no augmentation but how to handle the crop??
         ## seed from GFS-Seg: 5
         way, shot, dim, p, p = novel_patch_embeddings.size()
         all_novel_queries = np.zeros([way, 768]) # [way, dim]
+        novel_labels = novel_labels.reshape(way*shot, 512, 512)
 
         # generate label for each image
         labels = [[i]*shot for i in range(way)]
@@ -632,9 +618,9 @@ class FakeHeadSeg(BaseDecodeHead):
         n = 0
         for patch_embeddings in novel_patch_embeddings.reshape(way*shot, dim, p, p):
             # obtain the mask
-            label = F.interpolate(label.unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
-            binary_label = torch.zeros_like(label)
-            binary_label[label == self.novel_class[labels[n]]] = 1
+            novel_label = F.interpolate(novel_labels[n].unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
+            binary_label = torch.zeros_like(novel_label)
+            binary_label[novel_label == self.novel_idx[labels[n]]] = 1
             assert binary_label.sum() != 0
             # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
             proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
