@@ -6,12 +6,12 @@ from models.segmentor.freeseg import FreeSeg
 from models.segmentor.binary_fewsegvit import BinaryFewSegViT
 from models.segmentor.cross_fewsegvit import CrossFewSegViT
 from models.segmentor.caplsegvit import CAPLSegViT
-from models.segmentor.fewsegvit_fake import FakeFewSegViT
+from models.segmentor.fewsegvit_fake import FakeFewSegViT, MaskFakeFewSegViT
 
 from models.backbone.dino_encoder import BaseVisionTransformer, PromptVisionTransformer
 from models.backbone.mae_encoder import PromptMaskedAutoencoderViT
 from models.backbone.beit_encoder import PromptBEiT
-from models.backbone.vit_encoder import PromptImageNetViT, BaseImageNetViT
+from models.backbone.vit_encoder import PromptImageNetViT, BaseImageNetViT, MaskPromptImageNetViT
 from models.backbone.resnet_encoder import LoRAResNet
 
 from models.decode_heads.decode_seg import ATMSingleHeadSeg, ATMSingleHeadSegWORD
