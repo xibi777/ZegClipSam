@@ -1015,9 +1015,7 @@ class MaskPromptImageNetViT(nn.Module):
             #     masks.append(targets_per_image == 255)
             masks = torch.stack(masks, dim=0)
             all_masks.append(masks)
-            all_gt_cls.append(gt_cls)
-        
-        # all_cls = torch.stack(all_cls).reshape(-1)
-        # all_masks = torch.stack(all_masks).reshape(len(img_idx), h, w)
-        all_gt_cls = torch.stack(all_gt_cls).reshape(-1).tolist()
+            all_gt_cls.append(gt_cls.tolist())
+            
+        all_gt_cls = sum(all_gt_cls, [])
         return all_masks, all_gt_cls
