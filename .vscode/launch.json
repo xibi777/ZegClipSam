@@ -592,7 +592,7 @@
                 "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "configs/voc12_maskvit_fake_attn/vit_b_16_split_0_512x512_20k_12_10.py",
+                "configs/coco2014_maskvit_fakeseg_attn/vit_b_16_split_0_512x512_40k_12_50.py",
                 "--work-dir", "./work_dirs/voc_vit",
             ]
         },

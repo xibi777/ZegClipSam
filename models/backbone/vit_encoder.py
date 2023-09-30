@@ -123,7 +123,7 @@ class MaskMultiHeadedSelfAttention(nn.Module):
 
     def prepocess(self, masks, scores_ori, v_ori, x_ori): # repeat scores
         img_idx = []
-        new_masks = []
+        # new_masks = []
         new_scores = []
         new_v = []
         new_x = []
@@ -132,7 +132,11 @@ class MaskMultiHeadedSelfAttention(nn.Module):
             masks_i = masks[i].reshape(masks[i].shape[0], -1).float() #n_cls_i, 32*32
             new_masks_i = torch.zeros(masks[i].shape[0], scores_ori.shape[-1])
             new_masks_i[:, 1:(masks_i.shape[1]+1)] = masks_i
-            new_masks.append(new_masks_i)
+            # new_masks.append(new_masks_i)
+            if i == 0:
+                new_masks = new_masks_i
+            else:
+                new_masks = torch.concat([new_masks, new_masks_i], dim=0)
             img_idx.append([i] * masks_i.shape[0])
             # new_scores.append(torch.stack([scores_ori[i]] * masks_i.shape[0], dim=0).reshape(masks_i.shape[0], head, dim, dim))
             new_scores.append(scores_ori[i].unsqueeze(0).repeat(masks_i.shape[0], 1, 1, 1))
@@ -140,11 +144,12 @@ class MaskMultiHeadedSelfAttention(nn.Module):
             new_x.append(x_ori[i].unsqueeze(0).repeat(masks_i.shape[0], 1, 1))
         
         img_idx = list(itertools.chain(*img_idx))
-        new_masks = torch.stack(new_masks, dim=0).reshape(len(img_idx), -1).to(masks_i.dtype).to(masks_i.device)
+        # new_masks = torch.stack(new_masks, dim=0).reshape(len(img_idx), -1).to(masks_i.dtype).to(masks_i.device)
+        new_masks = new_masks.reshape(len(img_idx), -1).to(masks_i.dtype).to(masks_i.device)
         new_scores = torch.stack(new_scores, dim=0).reshape(len(img_idx), head, dim, dim).to(masks_i.dtype).to(masks_i.device)
         new_v = torch.stack(new_v, dim=0).reshape(len(img_idx), head, dim, v_ori.shape[-1]).to(v_ori.dtype).to(v_ori.device)
         new_x = torch.stack(new_x, dim=0).reshape(len(img_idx), dim, x_ori.shape[-1]).to(x_ori.dtype).to(x_ori.device)
-        return img_idx, new_masks, new_scores, new_v, new_x
+        return img_idx, new_masks.clone().detach(), new_scores.clone().detach(), new_v.clone().detach(), new_x.clone().detach()
 
     def save_attn_map(self, attn):
         from PIL import Image
