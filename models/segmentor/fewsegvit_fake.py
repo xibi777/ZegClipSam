@@ -417,11 +417,11 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
         losses.update(add_prefix(loss_decode, 'decode'))
         return losses
         
-    def _decode_head_forward_test(self, x, img_metas, novel_clip_feats=None, novel_labels=None):
+    def _decode_head_forward_test(self, x, img_metas, novel_prototypes=None):
         """Run forward function and calculate loss for decode head in
         inference."""
-        if novel_clip_feats is not None:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_clip_feats, novel_labels)
+        if novel_prototypes is not None:
+            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_prototypes)
         else:
             seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg)
         return seg_logits
@@ -434,7 +434,7 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
             ## register novel prototypies:
             return self.forward_test(img, img_metas, **kwargs)
 
-    def extract_feat(self, img, gt_semantic_seg):
+    def extract_feat(self, img, gt_semantic_seg=None):
         """Extract features from images."""
         ## calculate the mask from gt_semantic_seg
         visual_feat = self.backbone(img, gt_semantic_seg) #with l2norm
@@ -462,16 +462,15 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
         
     def encode_decode(self, img, img_metas):
         visual_feat = self.extract_feat(img)
-        feat = []
-        feat.append(visual_feat)
+        dim = visual_feat[1].shape[-1]
         
         if len(self.base_class) != len(self.both_class): #generalized few-shot setting
             if not hasattr(self.decode_head, 'novel_queries'):
                 print('\n' + '------------Registering the prototypes of novel classes-----------')
-                novel_clip_feats, novel_labels = self.extract_novel_feats(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
-                out = self._decode_head_forward_test(feat, img_metas, novel_clip_feats, novel_labels)
+                novel_prototypes = self.extract_novel_prototypes(self.supp_dir, self.supp_path, len(self.novel_class), self.shot, dim)
+                out = self._decode_head_forward_test(visual_feat, img_metas, novel_prototypes)
             else:
-                out = self._decode_head_forward_test(feat, img_metas)
+                out = self._decode_head_forward_test(visual_feat, img_metas)
         out = resize(
             input=out,
             size=img.shape[2:],
@@ -527,9 +526,8 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
                 warning=False)
         return preds
 
-    def extract_novel_feats(self, dir, path, way, shot):
-        clip_patch_embeddings = []
-        labels = []
+    def extract_novel_prototypes(self, dir, path, way, shot, dim):
+        novel_prototypes = torch.zeros((way, dim)).to(self.backbone.class_token.device)
         
         n = 0
         f = open(path, 'r')
@@ -569,17 +567,12 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
-            _, dim, p, p = patch_embeddings.size()
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
-            clip_patch_embeddings.append(patch_embeddings.squeeze())
-            labels.append(label.squeeze())
-            
-        clip_patch_embeddings = torch.stack(clip_patch_embeddings, dim=0) #(way*shot, dim, 32, 32)
-        clip_patch_embeddings = clip_patch_embeddings.reshape(way, shot, dim, p, p)
-        labels = torch.stack(labels, dim=0) #(way*shot, 512, 512)
-        labels = labels.reshape(way, shot, 512, 512)
+            visual_feat = self.extract_feat(image, label.unsqueeze(0).unsqueeze(0).to(image.device))  ## V1: (1, dim, 32, 32) dino+vpt better
+            new_cls = visual_feat[1] # cls
+            _, dim = new_cls.size()
+            novel_prototypes[n//shot] += new_cls.squeeze()
+            n+=1
         
-        return  clip_patch_embeddings, labels
+        return  (novel_prototypes / shot)
             
 

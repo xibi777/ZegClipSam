@@ -362,7 +362,7 @@ class FewSegViT(FewEncoderDecoder):
         losses.update(loss_decode)
         return losses
         
-    def encode_decode(self, img, img_metas, novel_queries=None):
+    def encode_decode(self, img, img_metas, novel_queries=None): 
         visual_feat = self.extract_feat(img)
 
         feat = []

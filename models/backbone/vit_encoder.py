@@ -92,7 +92,7 @@ class MaskMultiHeadedSelfAttention(nn.Module):
         self.n_heads = num_heads
         self.scores = None # for visualization
 
-    def forward(self, x, masks):
+    def forward(self, x, masks=None):
         """
         x, q(query), k(key), v(value) : (B(batch_size), S(seq_len), D(dim))
         mask : (B(batch_size) x S(seq_len))
@@ -119,7 +119,9 @@ class MaskMultiHeadedSelfAttention(nn.Module):
                 new_scores = self.drop(F.softmax(new_scores, dim=-1))
                 new_h = (new_scores @ new_v).transpose(1, 2).contiguous()
                 new_h = merge_last(new_h, 2)
-        return h, new_h, img_idx, new_x
+                return h, new_h, img_idx, new_x
+            else:
+                return h
 
     def prepocess(self, masks, scores_ori, v_ori, x_ori): # repeat scores
         img_idx = []
@@ -209,21 +211,27 @@ class MaskBlock(nn.Module):
         self.norm2 = nn.LayerNorm(dim, eps=1e-6)
         self.drop = nn.Dropout(dropout)
 
-    def forward(self, x_ori, mask):
-        h, new_h, img_mask_idx, x_new = self.attn(self.norm1(x_ori), mask)
+    def forward(self, x_ori, mask=None):
+        if mask is not None:
+            h, new_h, img_mask_idx, x_new = self.attn(self.norm1(x_ori), mask)
+        else:
+            h = self.attn(self.norm1(x_ori))
         
         h = self.drop(self.proj(h))
         x = x_ori + h
         h = self.drop(self.pwff(self.norm2(x)))
         x = x + h
-        with torch.no_grad():
-            # to get new cls
-            new_h = self.drop(self.proj(new_h))
-            x_new = x_new + new_h
-            new_h = self.drop(self.pwff(self.norm2(x_new)))
-            x_new = x_new + new_h
         
-        return x, x_new, img_mask_idx
+        if mask is not None:
+            with torch.no_grad():
+                # to get new cls
+                new_h = self.drop(self.proj(new_h))
+                x_new = x_new + new_h
+                new_h = self.drop(self.pwff(self.norm2(x_new)))
+                x_new = x_new + new_h
+            return x, x_new, img_mask_idx
+        else:
+            return x
 
 class Transformer(nn.Module):
     """Transformer with Self-Attentive Blocks"""
@@ -846,12 +854,13 @@ class MaskPromptImageNetViT(nn.Module):
             u, w = self.load_state_dict(state_dict, strict=False)
             print(u, w, 'are misaligned params in vision transformer') # it should be nothing is misaligned
 
-    def forward(self, x, masks):
+    def forward(self, x, masks=None):
         """Breaks image into patches, applies transformer, applies MLP head.
         Args:
             x (tensor): `b,c,fh,fw`
         """
-        all_masks, img_mask_labels = self.prepare_targets(masks)
+        if masks is not None:
+            all_masks, img_mask_labels = self.prepare_targets(masks)
         
         x = self.patch_embedding(x)  # b,d,gh,gw 
         B, _, H, W = x.shape
@@ -892,7 +901,10 @@ class MaskPromptImageNetViT(nn.Module):
                         xp = x.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
                         features.append(xp.contiguous())
         elif self.total_d_layer > 0: # deep
-            x, features, mask_cls, img_mask_idx = self.forward_deep_prompt(x, features, all_masks, H, W)
+            if masks is not None: # training or testing on support set
+                x, features, mask_cls, img_mask_idx = self.forward_deep_prompt(x, features, H, W, all_masks)
+            else:
+                x, features = self.forward_deep_prompt(x, features, H, W)
         elif self.total_d_layer < 0:
             x, features = self.forward_reverse_deep_prompt(x, features, all_masks, H, W)
         else:
@@ -915,12 +927,13 @@ class MaskPromptImageNetViT(nn.Module):
         outs.append(tuple(features))
         outs.append(global_embedding) 
         # outs.append(proto_embedding) 
-        outs.append(mask_cls)
-        outs.append(img_mask_idx)
-        outs.append(img_mask_labels)
+        if masks is not None:
+            outs.append(mask_cls)
+            outs.append(img_mask_idx)
+            outs.append(img_mask_labels)
         return outs
 
-    def forward_deep_prompt(self, embedding_output, features, all_masks, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
+    def forward_deep_prompt(self, embedding_output, features, H, W, all_masks=None, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
         
         B = embedding_output.shape[1]
         for i in range(self.num_layers):
@@ -932,8 +945,10 @@ class MaskPromptImageNetViT(nn.Module):
                         deep_prompt_emb,
                         hidden_states[(1+self.num_tokens):, :, :]
                     ), dim=0) #(1+n_prompt+n_patches, B, D)
-
-                hidden_states, new_hidden_states, img_mask_idx = (self.transformer.blocks[i](hidden_states.permute(1, 0, 2), mask))
+                if mask is not None:
+                    hidden_states, new_hidden_states, img_mask_idx = (self.transformer.blocks[i](hidden_states.permute(1, 0, 2), mask))
+                else:
+                    hidden_states = (self.transformer.blocks[i](hidden_states.permute(1, 0, 2), mask))
                 hidden_states = hidden_states.permute(1, 0, 2)
             else:
                 mask = None
@@ -967,7 +982,10 @@ class MaskPromptImageNetViT(nn.Module):
         if out_last:
             return before_last_feats
         else:
-            return encoded, features, new_hidden_states[:, 1, :], img_mask_idx #only for saving middle features
+            if mask is not None:
+                return encoded, features, new_hidden_states[:, 1, :], img_mask_idx #only for saving middle features
+            else:
+                return encoded, features
 
     def forward_reverse_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
         mask = None
