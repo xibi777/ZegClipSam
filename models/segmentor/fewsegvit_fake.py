@@ -171,9 +171,7 @@ class FakeFewSegViT(FewEncoderDecoder):
         visual_feat = self.extract_feat(img) # (bs, 1025, 768)
         feat = []
         feat.append(visual_feat)
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
-
+        
         losses = dict()
         loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg)
         losses.update(loss_decode)
@@ -291,8 +289,8 @@ class FakeFewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) 
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original backbone
+            # patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) 
+            patch_embeddings = self.extract_feat(image)[2] ## V2: only from the original backbone
             _, dim, p, p = patch_embeddings.size()
             all_patch_embeddings.append(patch_embeddings.squeeze())
             labels.append(label.squeeze())
@@ -450,11 +448,7 @@ class MaskFakeFewSegViT(FewEncoderDecoder):
 
         # print('gt:', gt_semantic_seg.unique())
         visual_feat = self.extract_feat(img, gt_semantic_seg) # (bs, 1025, 768)
-        # feat = []
-        # feat.append(visual_feat)
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
-
+        
         losses = dict()
         loss_decode = self._decode_head_forward_train(visual_feat, img_metas, gt_semantic_seg)
         losses.update(loss_decode)

@@ -132,7 +132,7 @@ class LoRABottleneck(nn.Module):
                                      stride=self.stride, padding=1,dilation=1,groups=1,bias=False,)
         self.lora_up_2 = nn.Conv2d(in_channels=self.r,out_channels=self.planes,kernel_size=1,stride=1,padding=0,bias=False,)
 
-  
+
         self.lora_down_3 = nn.Conv2d(in_channels=self.planes, out_channels=self.r, kernel_size=1, 
                                      stride=1, padding=0,dilation=1,groups=1,bias=False,)
         self.lora_up_3 = nn.Conv2d(in_channels=self.r,out_channels=self.planes * self.expansion,kernel_size=1,stride=1,padding=0,bias=False,)
@@ -245,7 +245,7 @@ class LoRAResNet(nn.Module):
             self.relu3 = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2) 
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(16, stride=1)
