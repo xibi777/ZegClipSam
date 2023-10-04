@@ -250,7 +250,7 @@ class FakeFewSegViT(FewEncoderDecoder):
         return preds
 
     def extract_novel_feats(self, dir, path, way, shot):
-        clip_patch_embeddings = []
+        all_patch_embeddings = []
         labels = []
         
         n = 0
@@ -291,18 +291,18 @@ class FakeFewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
+            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) 
+            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original backbone
             _, dim, p, p = patch_embeddings.size()
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
-            clip_patch_embeddings.append(patch_embeddings.squeeze())
+            all_patch_embeddings.append(patch_embeddings.squeeze())
             labels.append(label.squeeze())
             
-        clip_patch_embeddings = torch.stack(clip_patch_embeddings, dim=0) #(way*shot, dim, 32, 32)
-        clip_patch_embeddings = clip_patch_embeddings.reshape(way, shot, dim, p, p)
+        all_patch_embeddings = torch.stack(all_patch_embeddings, dim=0) #(way*shot, dim, 32, 32)
+        all_patch_embeddings = all_patch_embeddings.reshape(way, shot, dim, p, p)
         labels = torch.stack(labels, dim=0) #(way*shot, 512, 512)
         labels = labels.reshape(way, shot, 512, 512)
         
-        return  clip_patch_embeddings, labels
+        return  all_patch_embeddings, labels
             
 
 

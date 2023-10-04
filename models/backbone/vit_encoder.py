@@ -429,11 +429,11 @@ class PromptImageNetViT(nn.Module):
         mask = None
         
         ## get proto for q only from dino
-        # x_p = x.clone().detach()
-        # with torch.no_grad():
-        #     for blk in self.transformer.blocks:
-        #         x_p = blk(x_p, mask)
-        #     proto_embedding = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+        x_ori = x.clone().detach()
+        with torch.no_grad():
+            for blk in self.transformer.blocks:
+                x_ori = blk(x_ori, mask)
+            ori_patch_embeddings = self.norm(x_ori)[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
         
         if self.total_d_layer >=0:
             # concat prompt
@@ -473,11 +473,11 @@ class PromptImageNetViT(nn.Module):
 
         ## get embedding:
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-        # proto_embedding = proto_embedding / proto_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        ori_patch_embeddings = ori_patch_embeddings / ori_patch_embeddings.norm(dim=1, keepdim=True) ##ADDED_Norm
         
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        # outs.append(proto_embedding) 
+        outs.append(ori_patch_embeddings) 
         return outs
 
     def forward_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)

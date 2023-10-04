@@ -59,7 +59,22 @@ class MLP(nn.Module):
         for i, layer in enumerate(self.layers):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
         return x
-    
+  
+class MLPFuse(nn.Module):
+    """Very simple multi-layer perceptron (also called FFN)"""
+
+    def __init__(self, dim_list):
+        super().__init__()
+        self.num_layers = len(dim_list) - 1
+        self.layers = nn.ModuleList(
+            nn.Linear(n, k) for n, k in zip(dim_list[:-1], dim_list[1:])
+        )
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        return x
+       
 class FCNHead(BaseDecodeHead):
     """Fully Convolution Networks for Semantic Segmentation.
 
@@ -361,6 +376,8 @@ class FakeHeadSeg(BaseDecodeHead):
             self.decoder = TPN_Decoder(decoder_layer, num_layers=1)
         elif decode_type == 'conv':
             self.decoder = FCNHead(num_convs=2, kernel_size=1)
+        elif decode_type == 'mlpfuse':
+            self.decoder = MLPFuse([dim*3, int(dim*3/4), int(dim/4), dim])
         else:
             pass
 
@@ -373,8 +390,9 @@ class FakeHeadSeg(BaseDecodeHead):
 
 
     def forward(self, inputs, gt_semantic_seg=None, novel_clip_feats=None, novel_labels=None):
-        patch_tokens = inputs[0][0][0] #(bs, 768, 32, 32)
+        patch_tokens = inputs[0][0][-1] #(bs, 768, 32, 32) patch embeddings from the last layer
         cls_token = inputs[0][1]
+        ori_patch_tokens = inputs[0][2]
         
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
@@ -411,21 +429,26 @@ class FakeHeadSeg(BaseDecodeHead):
 
         assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
                
-        # refine the patch embeddings        
+        # refine the patch embeddings
+        # if multi-stage:
+        if len(inputs[0][0])>1:
+            all_patch_tokens = torch.cat(inputs[0][0], dim=1).reshape(bs, len(inputs[0][0])*dim, p*p) ## ()
+        else:
+            all_patch_tokens = patch_tokens
         if self.decode_type is not None:
-            if self.decode_type=='mlp':
-                patch_tokens = self.decoder(patch_tokens.transpose(2,1))
-                patch_tokens = patch_tokens.transpose(2,1)
+            if 'mlp' in self.decode_type:
+                all_patch_tokens = self.decoder(all_patch_tokens.transpose(2,1))
+                all_patch_tokens = all_patch_tokens.transpose(2,1)
             elif self.decode_type=='attn':    
-                patch_tokens_list, _ = self.decoder(patch_tokens.transpose(2, 1), patch_tokens.transpose(2, 1)) # q/k/v=patch embedding
-                patch_tokens = patch_tokens_list[-1].transpose(2,1) #(2, 768, 32*32)
+                all_patch_tokens_list, _ = self.decoder(all_patch_tokens.transpose(2, 1), all_patch_tokens.transpose(2, 1)) # q/k/v=patch embedding
+                all_patch_tokens = all_patch_tokens_list[-1].transpose(2,1) #(2, 768, 32*32)
             else:
                 assert AttributeError('Donot support this decode type')
         else:
             pass 
         
         # get prediction and loss
-        pred_logits = torch.einsum("bdn,bcd->bcn", patch_tokens, q) # matching directly
+        pred_logits = torch.einsum("bdn,bcd->bcn", all_patch_tokens, q) # matching directly
         c = pred_logits.shape[1]
         pred_logits = pred_logits.reshape(bs, c, p, p)
         # pred_logits = patch_tokens @ text_token.t()
@@ -1099,6 +1122,7 @@ class BianryFakeHeadSeg(BaseDecodeHead):
     def forward(self, inputs, gt_semantic_seg=None, novel_clip_feats=None, novel_labels=None):
         patch_tokens = inputs[0][0][0] #(bs, 768, 32, 32)
         cls_token = inputs[0][1]
+        ori_patch_tokens = inputs[0][2]
         
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
