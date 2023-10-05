@@ -91,28 +91,65 @@ class LoRABottleneck(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-        self._init_lora()
+        ## Initialize LoRA
+        self.r = 4 #4/8
+        self.lora_alpha = 1
+        if self.r > 0:
+            # self.lora_A = nn.Parameter(
+            #     self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))
+            # )
+            # self.lora_B = nn.Parameter(
+            #   self.conv.weight.new_zeros((out_channels//self.conv.groups*kernel_size, r*kernel_size))
+            # )
+            self.lora_down_1 = nn.Parameter(self.conv1.weight.new_zeros((self.r * 1, inplanes * 1)))
+            self.lora_up_1 = nn.Parameter(self.conv1.weight.new_zeros((planes//self.conv1.groups * 1, self.r * 1)))
+            self.lora_down_2 = nn.Parameter(self.conv2.weight.new_zeros((self.r * 3, planes * 3)))
+            self.lora_up_2 = nn.Parameter(self.conv2.weight.new_zeros((planes//self.conv2.groups * 3, self.r * 3)))
+            self.lora_down_3 = nn.Parameter(self.conv3.weight.new_zeros((self.r * 1, planes * 1)))
+            self.lora_up_3 = nn.Parameter(self.conv3.weight.new_zeros((planes * self.expansion//self.conv3.groups * 1, self.r * 1)))
+            
+            self.scaling = self.lora_alpha / self.r
+            
+            self.conv1.weight.requires_grad = False
+            self.conv2.weight.requires_grad = False
+            self.conv3.weight.requires_grad = False
+            
+            self.reset_parameters()
 
+        self.dropout = nn.Dropout(0.1)
+        self.selector = nn.Identity()
+        
+    def reset_parameters(self):
+        self.conv1.reset_parameters()
+        self.conv2.reset_parameters()
+        self.conv3.reset_parameters()
+        if hasattr(self, 'lora'):
+            # initialize A the same way as the default for nn.Linear and B to zero
+            nn.init.kaiming_uniform_(self.lora_down_1, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_up_1)
+            nn.init.kaiming_uniform_(self.lora_down_2, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_up_2)
+            nn.init.kaiming_uniform_(self.lora_down_3, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_up_3)
+        
     def forward(self, x):
         residual = x
+        
+        ## merge the params
+        self.conv1.weight.data += (self.lora_up_1 @ self.lora_down_1).view(self.conv1.weight.shape) * self.scaling
+        self.conv2.weight.data += (self.lora_up_2 @ self.lora_down_2).view(self.conv2.weight.shape) * self.scaling
+        self.conv3.weight.data += (self.lora_up_3 @ self.lora_down_3).view(self.conv3.weight.shape) * self.scaling
 
-        out = self.relu(self.bn1(
-            self.conv1(x)
-            + self.dropout(self.lora_up_1(self.selector(self.lora_down_1(x))))
-            * self.scale
-        )) #(bs, 64, 128, 128)
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
 
-        out = self.relu(self.bn2(
-            self.conv2(out)
-            + self.dropout(self.lora_up_2(self.selector(self.lora_down_2(out))))
-            * self.scale
-        )) #(bs, 64, 128, 128)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
 
-        out = self.bn3(
-            self.conv3(out)
-            + self.dropout(self.lora_up_3(self.selector(self.lora_down_3(out))))
-            * self.scale
-        ) #(bs, 256, 128, 128)
+        out = self.conv3(out)
+        out = self.bn3(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -121,32 +158,6 @@ class LoRABottleneck(nn.Module):
         out = self.relu(out)
 
         return out #(bs, 256, 128, 128)
-
-    def _init_lora(self):
-        self.r = 4 #4/8
-        self.lora_down_1 = nn.Conv2d(in_channels=self.inplanes, out_channels=self.r, kernel_size=1, 
-                                     stride=1, padding=0,dilation=1,groups=1,bias=False,)
-        self.lora_up_1 = nn.Conv2d(in_channels=self.r,out_channels=self.planes,kernel_size=1,stride=1,padding=0,bias=False,)
-
-        self.lora_down_2 = nn.Conv2d(in_channels=self.planes, out_channels=self.r, kernel_size=3, 
-                                     stride=self.stride, padding=1,dilation=1,groups=1,bias=False,)
-        self.lora_up_2 = nn.Conv2d(in_channels=self.r,out_channels=self.planes,kernel_size=1,stride=1,padding=0,bias=False,)
-
-  
-        self.lora_down_3 = nn.Conv2d(in_channels=self.planes, out_channels=self.r, kernel_size=1, 
-                                     stride=1, padding=0,dilation=1,groups=1,bias=False,)
-        self.lora_up_3 = nn.Conv2d(in_channels=self.r,out_channels=self.planes * self.expansion,kernel_size=1,stride=1,padding=0,bias=False,)
-
-        self.dropout = nn.Dropout(0.1)
-        self.selector = nn.Identity()
-        self.scale = 1.0
-
-        nn.init.normal_(self.lora_down_1.weight, std=1 / self.r)
-        nn.init.zeros_(self.lora_up_1.weight)
-        nn.init.normal_(self.lora_down_2.weight, std=1 / self.r)
-        nn.init.zeros_(self.lora_up_2.weight)
-        nn.init.normal_(self.lora_down_3.weight, std=1 / self.r)
-        nn.init.zeros_(self.lora_up_3.weight)
 
 
 # @BACKBONES.register_module()
@@ -273,35 +284,6 @@ class LoRAResNet(nn.Module):
         elif isinstance(m, nn.BatchNorm2d):
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
-        
-    # def _init_lora_fc(self):
-    #     r=4
-    #     self.r = r
-    #     self.lora_fc_down = nn.Linear(self.in_fc_dim, r, bias=False)
-    #     self.dropout_fc = nn.Dropout(0.1)
-    #     self.lora_fc_up = nn.Linear(r, self.out_fc_dim, bias=False)
-    #     self.scale = 1
-    #     self.selector = nn.Identity()
-
-    #     nn.init.normal_(self.lora_fc_down.weight, std=1 / r)
-    #     nn.init.zeros_(self.lora_fc_up.weight)
-
-    # def _make_layer(self, block, planes, blocks, stride=1):
-    #     downsample = None
-    #     if stride != 1 or self.inplanes != planes * block.expansion:
-    #         downsample = nn.Sequential(
-    #             nn.Conv2d(self.inplanes, planes * block.expansion,
-    #                       kernel_size=1, stride=stride, bias=False),
-    #             BatchNorm(planes * block.expansion),
-    #         )
-
-    #     layers = []
-    #     layers.append(block(self.inplanes, planes, stride, downsample))
-    #     self.inplanes = planes * block.expansion
-    #     for i in range(1, blocks):
-    #         layers.append(block(self.inplanes, planes))
-
-    #     return nn.Sequential(*layers)
     
     def _make_layer(self, block, planes, blocks, stride=1):
         # layers = [block(self.inplanes, planes, stride)]

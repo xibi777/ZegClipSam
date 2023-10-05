@@ -589,10 +589,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/coco2014_vit_fakeseg_mlp_fuse/vit_b_16_split_0_512x512_40k_12_50.py",
+                "configs/voc12_resnet50_fakeseg_mlp/resnet50_split_0_512x512_20k.py",
                 "--work-dir", "./work_dirs/voc_vit",
             ]
         },

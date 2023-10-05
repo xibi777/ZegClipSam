@@ -400,7 +400,7 @@ class FakeHeadSeg(BaseDecodeHead):
         # get qs_epoch
         # calculate relationship descriptor RD=qclsq, q is from average targeted patch embeddings
         if self.training:
-            qs_epoch = self.extract_base_proto_epoch(self.base_qs, ori_patch_tokens.reshape(bs, dim, p, p).clone().detach(), gt_semantic_seg.squeeze())
+            qs_epoch = self.extract_base_proto_epoch(self.base_qs, patch_tokens.reshape(bs, dim, p, p).clone().detach(), gt_semantic_seg.squeeze())
         else:
             if not hasattr(self, 'both_proto'):
                 if novel_clip_feats is not None: # few-shot
@@ -469,7 +469,7 @@ class FakeHeadSeg(BaseDecodeHead):
         
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0):
         mask_pred = mask_pred.sigmoid()
-        mask_pred[:,0] = mask_pred[:,0] - 0.2 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
@@ -656,7 +656,7 @@ class FakeHeadSeg(BaseDecodeHead):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries/15 #??????
+        return all_novel_queries/10 #??????
 
 
 @HEADS.register_module()

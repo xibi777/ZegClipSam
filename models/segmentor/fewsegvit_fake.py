@@ -289,8 +289,8 @@ class FakeFewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            # patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) 
-            patch_embeddings = self.extract_feat(image)[2] ## V2: only from the original backbone
+            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) 
+            # patch_embeddings = self.extract_feat(image)[2] ## V2: only from the original backbone
             _, dim, p, p = patch_embeddings.size()
             all_patch_embeddings.append(patch_embeddings.squeeze())
             labels.append(label.squeeze())

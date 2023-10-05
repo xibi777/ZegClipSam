@@ -22,19 +22,25 @@ num_classes = len(base_class)
 eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
 eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentation/val_supp_split_1_shot_1_seed3.txt'
 
-pretrained = '/media/data/ziqin/pretrained/B_16.pth'
+pretrained = '/media/data/ziqin/pretrained/dino_vitbase16_pretrain.pth'
 
 model = dict(
     type='FakeFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
-        type='PromptImageNetViT',
-        ## ADDED
+        type='PromptVisionTransformer',
+        img_size = 512,
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        mlp_ratio=4,
+        qkv_bias=True,
         out_indices=out_indices, 
         pretrained=pretrained, 
         #setting of vpt
-        num_tokens=100,
+        num_tokens=50,
         prompt_dim=768,
         total_d_layer=11,
         style='pytorch'),
@@ -55,7 +61,7 @@ model = dict(
         decode_type='mlp',
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
-            mask_weight=20.0, #20.0
+            mask_weight=100.0, #20.0
             dice_weight=1.0,
             loss_weight=1.0),
     ),
