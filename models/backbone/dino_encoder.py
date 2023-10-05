@@ -416,11 +416,11 @@ class PromptVisionTransformer(nn.Module):
         H = W = int(np.sqrt((x.shape[1]-1)))
 
         ## get proto for q only from dino
-        x_p = x.clone().detach() #(b, 1025, 768)
+        x_ori = x.clone().detach() #(b, 1025, 768)
         with torch.no_grad():
             for blk in self.blocks:
-                x_p = blk(x_p)
-            proto_embedding = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+                x_ori = blk(x_ori)
+            ori_patch_embedding = self.norm(x_ori)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
 
         ## check if freeze the backbone:
         # print('bb:', self.blocks[0].attn.proj.weight.sum())
@@ -448,6 +448,7 @@ class PromptVisionTransformer(nn.Module):
                 if len(self.out_indices) > 1:
                     if i in self.out_indices:
                         xp = x.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                        xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                         features.append(xp.contiguous())
         elif self.total_d_layer > 0: # deep
             x, features = self.forward_deep_prompt(x, features, H, W)
@@ -468,11 +469,11 @@ class PromptVisionTransformer(nn.Module):
 
         ## get embedding:
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-        proto_embedding = proto_embedding / proto_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        ori_patch_embedding = ori_patch_embedding / ori_patch_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
 
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(proto_embedding) 
+        outs.append(ori_patch_embedding) 
         return outs
 
     def forward_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
@@ -500,6 +501,7 @@ class PromptVisionTransformer(nn.Module):
             if len(self.out_indices) > 1:
                 if i in self.out_indices:
                     xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
             
             if i == (self.num_layers-2): #10
@@ -534,6 +536,7 @@ class PromptVisionTransformer(nn.Module):
                 if i in self.out_indices:
                     # xp = hidden_states.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
                     xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
             
             if i == (self.num_layers-2): #10
@@ -705,6 +708,7 @@ class BaseVisionTransformer(nn.Module):
             if len(self.out_indices) > 1: # return the middle features of visual CLIP
                 if i in self.out_indices:
                     xp = x.permute(1, 0, 2)[:, 1:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
 
         x = self.norm(x) #LayerNorm: (bs, 1025, 768)

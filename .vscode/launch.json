@@ -576,8 +576,8 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/coco2014_maskvit_fakeseg_mlp/vit_b_16_split_0_512x512_40k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/coco_maskvit_fake_mlp/vit_b_16_split_0/iter_40000.pth",
+                "configs/coco2014_vit_fakeseg_mlp_fuse/vit_b_16_split_0_512x512_40k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_fake_mlp_fuse/vit_b_16_split_0/iter_80000.pth",
                 "--eval", "mIoU",
             ]
         },      
@@ -592,7 +592,7 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/voc12_resnet50_fakeseg_mlp/resnet50_split_0_512x512_20k.py",
+                "configs/coco2014_dino_fakeseg_mlp_more/dino_b_16_split_0_512x512_80k_12_100.py",
                 "--work-dir", "./work_dirs/voc_vit",
             ]
         },

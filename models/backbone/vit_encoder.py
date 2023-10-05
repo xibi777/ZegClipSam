@@ -453,6 +453,7 @@ class PromptImageNetViT(nn.Module):
                 if len(self.out_indices) > 1:
                     if i in self.out_indices:
                         xp = x.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                        xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                         features.append(xp.contiguous())
         elif self.total_d_layer > 0: # deep
             x, features = self.forward_deep_prompt(x, features, H, W)
@@ -505,6 +506,7 @@ class PromptImageNetViT(nn.Module):
             if len(self.out_indices) > 1:
                 if i in self.out_indices:
                     xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
             
             if i == (self.num_layers-2): #10
@@ -540,6 +542,7 @@ class PromptImageNetViT(nn.Module):
                 if i in self.out_indices:
                     # xp = hidden_states.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
                     xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
             
             if i == (self.num_layers-2): #10
