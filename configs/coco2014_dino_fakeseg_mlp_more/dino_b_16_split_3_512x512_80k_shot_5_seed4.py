@@ -40,7 +40,7 @@ model = dict(
         out_indices=out_indices, 
         pretrained=pretrained, 
         #setting of vpt
-        num_tokens=50,
+        num_tokens=100,
         prompt_dim=768,
         total_d_layer=11,
         style='pytorch'),
@@ -61,7 +61,7 @@ model = dict(
         decode_type='mlp',
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
-            mask_weight=20.0, #20.0
+            mask_weight=100.0, #20.0
             dice_weight=1.0,
             loss_weight=1.0),
     ),
