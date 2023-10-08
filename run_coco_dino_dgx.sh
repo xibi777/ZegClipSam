@@ -57,4 +57,6 @@
 
 # bash dist_train_0123.sh configs/coco2014_vit_fakeseg_mlp_fuse/vit_b_16_split_0_512x512_80k_12_100.py /media/data/ziqin/work_dirs_fss/coco_vit_fake_mlp_fuse/vit_b_16_split_0
 
-bash dist_train_0123.sh configs/coco2014_dino_fakeseg_mlp_more/dino_b_16_split_0_512x512_80k_12_100.py /media/data/ziqin/work_dirs_fss/coco_fake_mlp_100/dino_b_16_split_0
+# bash dist_train_0123.sh configs/coco2014_dino_fakeseg_mlp_more/dino_b_16_split_0_512x512_80k_12_100.py /media/data/ziqin/work_dirs_fss/coco_fake_mlp_100/dino_b_16_split_0
+
+bash dist_train_0123.sh configs/coco2014_vit_fakeseg_mlp_more/vit_b_16_split_0_512x512_80k_12_100_V1.py /media/data/ziqin/work_dirs_fss/coco_fake_mlp_100/vit_b_16_split_0_V1

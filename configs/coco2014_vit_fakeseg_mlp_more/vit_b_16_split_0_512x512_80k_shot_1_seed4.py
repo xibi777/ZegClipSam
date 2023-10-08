@@ -28,18 +28,12 @@ model = dict(
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
-        type='PromptVisionTransformer',
-        img_size = 512,
-        patch_size=16,
-        embed_dim=768,
-        depth=12,
-        num_heads=12,
-        mlp_ratio=4,
-        qkv_bias=True,
+        type='PromptImageNetViT',
+        ## ADDED
         out_indices=out_indices, 
         pretrained=pretrained, 
         #setting of vpt
-        num_tokens=50,
+        num_tokens=100,
         prompt_dim=768,
         total_d_layer=11,
         style='pytorch'),

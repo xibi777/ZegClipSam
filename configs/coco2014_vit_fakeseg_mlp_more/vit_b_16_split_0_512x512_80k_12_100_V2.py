@@ -18,10 +18,10 @@ both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
              70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 num_classes = len(base_class)
 
-eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
-eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentation/val_supp_split_0_shot_5_seed1.txt'
+pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
-pretrained = '/media/data/ziqin/pretrained/dino_vitbase16_pretrain.pth'
+eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
+eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentation/val_supp_split_0_shot_1.txt'
 
 model = dict(
     type='FakeFewSegViT',
@@ -63,9 +63,9 @@ model = dict(
     novel_class = novel_class,
     both_class = both_class,
     split = 0,
-    shot = 5,
-    supp_dir = eval_supp_dir,
-    supp_path = eval_supp_path,
+    shot = 1,
+    supp_dir = None,
+    supp_path = None,
     ft_backbone = False,
     exclude_key='prompt',
 )
@@ -80,7 +80,7 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
         paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=10.0),
                                         'norm': dict(decay_mult=0.),
                                         'ln': dict(decay_mult=0.),
-                                        'head': dict(lr_mult=10.),
+                                        'head': dict(lr_mult=1.),
                                         }))
 
 data = dict(samples_per_gpu=4,

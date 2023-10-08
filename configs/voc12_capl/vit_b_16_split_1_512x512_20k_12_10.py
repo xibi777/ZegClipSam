@@ -63,5 +63,5 @@ optimizer = dict(type='SGD', lr=0.001, weight_decay=0.01,
                                         }))
 
 data = dict(samples_per_gpu=4,
-            workers_per_gpu=2,)
+            workers_per_gpu=4,)
 

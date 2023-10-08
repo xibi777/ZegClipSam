@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_0.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_20k.py'
 ]
 
 img_size = 512
@@ -45,7 +45,7 @@ model = dict(
         decode_type='mlp',
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
-            mask_weight=20.0,
+            mask_weight=100.0,
             dice_weight=1.0,
             loss_weight=1.0),
     ),
@@ -71,9 +71,9 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
         paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=10.0),
                                         'norm': dict(decay_mult=0.),
                                         'ln': dict(decay_mult=0.),
-                                        'head': dict(lr_mult=10.),
+                                        'head': dict(lr_mult=1.),
                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 

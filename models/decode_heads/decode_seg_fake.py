@@ -642,11 +642,12 @@ class FakeHeadSeg(BaseDecodeHead):
         n = 0
         for patch_embeddings in novel_patch_embeddings.reshape(way*shot, dim, p, p):
             # obtain the mask
-            novel_label = F.interpolate(novel_labels[n].unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
+            # novel_label = F.interpolate(novel_labels[n].unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
+            novel_label = novel_labels[n]
             binary_label = torch.zeros_like(novel_label)
             binary_label[novel_label == self.novel_idx[labels[n]]] = 1
             assert binary_label.sum() != 0
-            # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
+            patch_embeddings = F.interpolate(patch_embeddings.unsqueeze(0), size=binary_label.size(), mode='bilinear', align_corners=False).squeeze()
             proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
 
             # print('proto:', str(int(n/num_each_supp))+str(labels[n]))
@@ -836,7 +837,7 @@ class MaskFakeHeadSeg(BaseDecodeHead):
             # outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             # out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.0 is the best   
             return out["pred"]   
         return out                 
         

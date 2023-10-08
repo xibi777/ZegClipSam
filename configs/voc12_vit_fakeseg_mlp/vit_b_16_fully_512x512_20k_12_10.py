@@ -45,7 +45,7 @@ model = dict(
         decode_type='mlp',
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
-            mask_weight=20.0,
+            mask_weight=100.0,
             dice_weight=1.0,
             loss_weight=1.0),
     ),
@@ -74,6 +74,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 
