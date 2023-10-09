@@ -34,7 +34,7 @@ model = dict(
         out_indices=out_indices, 
         pretrained=pretrained, 
         #setting of vpt
-        num_tokens=50,
+        num_tokens=100,
         prompt_dim=768,
         total_d_layer=11,
         style='pytorch'),

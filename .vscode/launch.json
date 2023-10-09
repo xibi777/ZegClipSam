@@ -361,7 +361,7 @@
         },
            
         {
-            "name": "train_voc_vit",
+            "name": "train_voc_resnet",
             "type": "python",
             "request": "launch",
             "program": "./train.py",
@@ -371,8 +371,8 @@
                 "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
-                "configs/voc12_vit/vit_b_16_fully_512x512_20k_12_10.py",
-                "--work-dir", "./work_dirs/voc_vit",
+                "configs/voc12_resnet50_fakeseg_mlp/resnet50_split_0_512x512_20k.py",
+                "--work-dir", "./work_dirs/voc_rn50",
             ]
         },    
         
@@ -573,11 +573,11 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "configs/coco2014_vit_fakeseg_mlp_more/vit_b_16_split_0_512x512_80k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/coco_vit_fake_mlp_100_noprompt/vit_b_16_split_0/iter_80000.pth",
+                "configs/coco2014_vit_fakeseg_mlp_fuse/vit_b_16_split_0_512x512_40k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_fake_mlp_fuse/vit_b_16_split_0/iter_80000.pth",
                 "--eval", "mIoU",
             ]
         },      
