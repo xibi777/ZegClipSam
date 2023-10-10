@@ -132,13 +132,10 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
         losses.update(add_prefix(loss_decode, 'decode'))
         return losses
         
-    def _decode_head_forward_test(self, x, img_metas, novel_clip_feats=None, novel_labels=None):
+    def _decode_head_forward_test(self, x, img_metas, novel_queries=None):
         """Run forward function and calculate loss for decode head in
         inference."""
-        if novel_clip_feats is not None:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_clip_feats, novel_labels)
-        else:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg)
+        seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_queries, self.supp_cls)
         return seg_logits
 
     @auto_fp16(apply_to=('img', ))
@@ -203,6 +200,11 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
             with torch.no_grad():
                 patch_embeddings = self.extract_feat(images)[0][0]  ## V1: (bs, dim, 32, 32) dino+vpt better
             # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
+            
+            ## !!!!!!! pass the embeddings with the decoder:
+            bs, dim, p, _ = patch_embeddings.size()
+            patch_embeddings = self.decode_head.decoder(patch_embeddings.reshape(bs, dim , -1).transpose(2,1)) # mlp/attn/none
+            patch_embeddings = patch_embeddings.transpose(2,1).reshape(bs, dim, p, p)
 
             # obtain the mask
             # label = F.interpolate(label.unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
@@ -231,7 +233,7 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
             # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
 
             bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
-            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
+            bg_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
 
         else: # 1-shot
             if len(self.CLASSES) == 81:
@@ -258,6 +260,11 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
                 patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
             # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
 
+            ## !!!!!!! pass the embeddings with the decoder:
+            bs, dim, p, _ = patch_embeddings.size()
+            patch_embeddings = self.decode_head.decoder(patch_embeddings.reshape(bs, dim , -1).transpose(2,1)) # mlp/attn/none
+            patch_embeddings = patch_embeddings.transpose(2,1).reshape(bs, dim, p, p)
+            
             # obtain the mask
             patch_embeddings = F.interpolate(patch_embeddings, size=label.shape[-2:], mode='nearest')
             binary_label = torch.zeros_like(label)
@@ -280,13 +287,13 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
 
              # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
             bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
-            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
+            bg_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
             
         # return novel_proto
         self.supp_cls = cls_label
-        return fake_novel_proto
+        return bg_novel_proto / 1 ##? 10 or 
 
-    def extract_base_proto_epoch(self, qs, patch_features, targets):
+    def extract_base_proto_epoch(self, qs, patch_features, targets): # !!rewrite for binary seg
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
         assert patch_features.shape[0] == targets.shape[0]
         # patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
@@ -335,12 +342,11 @@ class BinaryFakeFewSegViT(FewEncoderDecoder):
         return losses
         
     def encode_decode(self, img, img_metas, novel_queries=None):
-        visual_feat = self.extract_feat(img)
-
+        visual_feat = self.extract_feat(img) # features for novel query images
         feat = []
         feat.append(visual_feat)
 
-        out = self._decode_head_forward_test(feat, img_metas, novel_queries)
+        out = self._decode_head_forward_test(feat, img_metas, novel_queries) 
         out = resize(
             input=out,
             size=img.shape[2:],

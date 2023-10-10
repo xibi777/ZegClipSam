@@ -4,6 +4,7 @@ from models.segmentor.fewsegvit import FewSegViT
 from models.segmentor.ft_fewsegvit import FTFewSegViT
 from models.segmentor.freeseg import FreeSeg
 from models.segmentor.binary_fewsegvit import BinaryFewSegViT
+from models.segmentor.binary_fewsegvit_fake import BinaryFakeFewSegViT
 from models.segmentor.cross_fewsegvit import CrossFewSegViT
 from models.segmentor.caplsegvit import CAPLSegViT
 from models.segmentor.fewsegvit_fake import FakeFewSegViT, MaskFakeFewSegViT
@@ -15,7 +16,7 @@ from models.backbone.vit_encoder import PromptImageNetViT, BaseImageNetViT, Mask
 from models.backbone.resnet_encoder import LoRAResNet
 
 from models.decode_heads.decode_seg import ATMSingleHeadSeg, ATMSingleHeadSegWORD
-from models.decode_heads.decode_seg_fake import FakeHeadSeg
+from models.decode_heads.decode_seg_fake import FakeHeadSeg, BinaryFakeHeadSeg
 from models.decode_heads.ft_decode_seg import FTATMSingleHeadSeg
 from models.decode_heads.free_decode_seg import FreeHeadSeg
 from models.decode_heads.cross_decode_seg import CrossATMSingleHeadSeg

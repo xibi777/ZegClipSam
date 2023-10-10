@@ -341,8 +341,8 @@ class FakeHeadSeg(BaseDecodeHead):
             self.add_module("proj_norm_{}".format(i + 1), norm)
             proj_norm.append(norm)
 
-        self.input_proj = input_proj
-        self.proj_norm = proj_norm
+        # self.input_proj = input_proj
+        # self.proj_norm = proj_norm
 
         delattr(self, 'conv_seg')
         self.register_buffer("cur_iter", torch.Tensor([0]))
@@ -371,6 +371,9 @@ class FakeHeadSeg(BaseDecodeHead):
         self.decode_type = decode_type
         if decode_type == 'mlp':
             self.decoder = MLP(dim, int(dim/4), dim, num_layers=3)
+            if use_stages>1:
+                self.fuse_factor = nn.Parameter(use_stages).requires_grad_()
+                nn.init.ones_(self.fuse_factor)
         elif decode_type == 'attn':
             decoder_layer = FullTPN_DecoderLayer(d_model=dim, nhead=8, dim_feedforward=dim * 4)
             self.decoder = TPN_Decoder(decoder_layer, num_layers=1)
@@ -432,7 +435,8 @@ class FakeHeadSeg(BaseDecodeHead):
         # refine the patch embeddings
         # if multi-stage:
         if len(inputs[0][0])>1:
-            all_patch_tokens = torch.cat(inputs[0][0], dim=1).reshape(bs, len(inputs[0][0])*dim, p*p) ## ()
+            # all_patch_tokens = torch.cat(inputs[0][0], dim=1).reshape(bs, len(inputs[0][0])*dim, p*p) ## ()
+            all_patch_tokens = self.fuse_factor * torch.stack(inputs[0][0], dim=0)
         else:
             all_patch_tokens = patch_tokens
         if self.decode_type is not None:
@@ -1016,25 +1020,25 @@ class MaskFakeHeadSeg(BaseDecodeHead):
     
 
 @HEADS.register_module()
-class BianryFakeHeadSeg(BaseDecodeHead):
+class BinaryFakeHeadSeg(BaseDecodeHead):
     def __init__(
-            self,
-            img_size,
-            in_channels,
-            seen_idx,
-            all_idx,
-            embed_dims=768,
-            num_layers=0,
-            num_heads=0,
-            use_stages=1,
-            withRD=False,
-            use_proj=True,
-            crop_train=False,
-            rd_type=None,
-            decode_type=None,
-            **kwargs,
+        self,
+        img_size,
+        in_channels,
+        seen_idx,
+        all_idx,
+        embed_dims=768,
+        num_layers=0,
+        num_heads=0,
+        use_stages=1,
+        withRD=False,
+        use_proj=True,
+        crop_train=False,
+        rd_type=None,
+        decode_type=None,
+        **kwargs,
     ):
-        super(BianryFakeHeadSeg, self).__init__(
+        super(BinaryFakeHeadSeg, self).__init__(
             in_channels=in_channels, **kwargs)
 
         self.image_size = img_size
@@ -1074,8 +1078,8 @@ class BianryFakeHeadSeg(BaseDecodeHead):
             self.add_module("proj_norm_{}".format(i + 1), norm)
             proj_norm.append(norm)
 
-        self.input_proj = input_proj
-        self.proj_norm = proj_norm
+        # self.input_proj = input_proj
+        # self.proj_norm = proj_norm
 
         delattr(self, 'conv_seg')
         self.register_buffer("cur_iter", torch.Tensor([0]))
@@ -1307,18 +1311,25 @@ class BianryFakeHeadSeg(BaseDecodeHead):
         m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
         return m
     
-    def forward_test(self, inputs, img_metas, test_cfg, novel_clip_feats=None, novel_labels=None):
+    def forward_test(self, inputs, img_metas, test_cfg, novel_queries=None, supp_cls=None):
         # get the target of each cliped region
-        # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations')
-        # self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
-        # self.gt_label = np.unique(self.gt_ann)
+        # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations').replace('/val2014/','/val_contain_crowd/')
+        # self.gt_label = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
         # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
         # self.gt_label[self.gt_label!=255] -= 1
-        # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
-        if novel_clip_feats is not None:
-            return self.forward(inputs, novel_clip_feats=novel_clip_feats, novel_labels=novel_labels)
-        else:
-            return self.forward(inputs)
+        # # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
+        # self.gt_label[self.gt_label!=supp_cls] = 255 # set the other object into 255, only focus on one target object
+        
+        # self.gt_label[self.gt_label==supp_cls] = 254
+        # self.gt_label[self.gt_label!=254] = 0
+        # self.gt_label[self.gt_label==254] = 255
+        # im = Image.fromarray(self.gt_label)
+        # im = im.convert('L')
+        # if len(self.novel_idx) == 5:
+        #     im.save('/media/data/ziqin/work_dirs_fss/visualization_binary/gt_voc/' + img_metas[0]['filename'].split('/').pop(-1))
+        # elif len(self.novel_idx) == 20:
+        #     im.save('/media/data/ziqin/work_dirs_fss/visualization_binary/gt_coco/' + img_metas[0]['filename'].split('/').pop(-1))
+        return self.forward_binary(inputs, novel_queries=novel_queries)
     
     def forward_train(self, inputs, img_metas, gt_semantic_seg, train_cfg):
         seg_logits = self.forward(inputs, gt_semantic_seg)
@@ -1353,34 +1364,70 @@ class BianryFakeHeadSeg(BaseDecodeHead):
         qs_epoch[num_base!=0] = qs_epoch[num_base!=0] / num_base[num_base!=0].unsqueeze(-1) #(15, 768)
         return qs_epoch
 
-
-    def extract_novel_proto(self, novel_patch_embeddings, novel_labels):
-        ## load Image and Annotations, no augmentation but how to handle the crop??
-        ## seed from GFS-Seg: 5
-        way, shot, dim, p, p = novel_patch_embeddings.size()
-        all_novel_queries = np.zeros([way, 768]) # [way, dim]
-        novel_labels = novel_labels.reshape(way*shot, 512, 512)
-
-        # generate label for each image
-        labels = [[i]*shot for i in range(way)]
-        labels = list(itertools.chain.from_iterable(labels))
-
-        n = 0
-        for patch_embeddings in novel_patch_embeddings.reshape(way*shot, dim, p, p):
-            # obtain the mask
-            novel_label = F.interpolate(novel_labels[n].unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
-            binary_label = torch.zeros_like(novel_label)
-            binary_label[novel_label == self.novel_idx[labels[n]]] = 1
-            assert binary_label.sum() != 0
-            # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
-            proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
-
-            # print('proto:', str(int(n/num_each_supp))+str(labels[n]))
-            all_novel_queries[labels[n], :] += proto.clone().cpu().numpy()
-            n += 1
+    def semantic_inference_binary(self, mask_pred, weight=0.0):
+        mask_pred = mask_pred.sigmoid()
+        # mask_pred[:, 0] = mask_pred[:, 0] - weight
+        return mask_pred
+    
+    def forward_binary(self, inputs, qs_epoch=None, novel_queries=None):
+        patch_token = inputs[0][0][-1]
+        # cls_token = inputs[0][1]
+        bs, dim, p, _ = patch_token.size()
+        patch_token = patch_token.reshape(bs, dim , -1)
         
-        # norm for 1shot or 5shot
-        all_novel_queries /= shot
+        if self.training:
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
+        else:
+            # REGISTER NOVEL: concat the novel queries in the right position
+            # novel_proto = novel_queries.clone().unsqueeze(0)
+            # fake_proto = torch.randn_like(novel_proto)
+            fake_novel_proto = novel_queries.clone()
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
 
-        return all_novel_queries/15 #??????
+
+        if not self.training:
+            # q = self.q_proj(self.get_qs(novel_proto.unsqueeze(0), cls_token)).transpose(0, 1)
+            q = self.q_proj(self.get_qs(fake_novel_proto, cls_token, self.rd_type))
+            # q = self.q_proj(self.get_qs_multihead(novel_proto.unsqueeze(0), cls_token)).transpose(0, 1) # V3
+        else:
+            ### do not support training
+            q = self.q_proj(self.get_qs(fake_novel_proto, cls_token, self.rd_type))
+            # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
+            # self.cur_iter += 1
+            # mom = self.update_m()
+            # self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
+
+        assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
+
+        if self.decode_type is not None:
+            if 'mlp' in self.decode_type:
+                patch_token = self.decoder(patch_token.transpose(2,1))
+                patch_token = patch_token.transpose(2,1)
+            elif self.decode_type=='attn':    
+                patch_token_list, _ = self.decoder(patch_token.transpose(2, 1), patch_token.transpose(2, 1)) # q/k/v=patch embedding
+                patch_token = patch_token_list[-1].transpose(2,1) #(2, 768, 32*32)
+            else:
+                assert AttributeError('Donot support this decode type')
+        
+        # get prediction and loss
+        pred_logits = torch.einsum("bdn,bcd->bcn", patch_token, q) # matching directly
+        c = pred_logits.shape[1]
+        pred_logits = pred_logits.reshape(bs, c, p, p)
+        # pred_logits = patch_tokens @ text_token.t()
+
+        pred = F.interpolate(pred_logits, size=(self.image_size, self.image_size),
+                                        mode='bilinear', align_corners=False)
+                                          
+        out = {"pred_masks": pred}
+        
+        if self.training:
+            out["qs_base"] = q
+            outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
+            out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
+        else:
+            out["pred"] = self.semantic_inference_binary(out["pred_masks"]) ## Change the balance factor： 0.0 is the best
+            return out["pred"]              
+        return out
 

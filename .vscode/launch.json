@@ -580,7 +580,25 @@
                 "/media/data/ziqin/work_dirs_fss/coco_fake_mlp_fuse/vit_b_16_split_0/iter_80000.pth",
                 "--eval", "mIoU",
             ]
-        },      
+        },  
+
+        {
+            "name": "test_coco_fake_binary",
+            "type": "python",
+            "request": "launch",
+            "program": "./test_binary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "args": [
+                "configs/coco2014_vit_fakeseg_mlp_binary/vit_b_16_split_0_512x512_40k_12_50_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_fake_mlp/vit_b_16_split_0/iter_40000.pth",
+                "/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
+                "--eval", "mIoU",
+            ]
+        },          
         {
             "name": "train_voc_fake_attn",
             "type": "python",

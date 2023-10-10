@@ -125,11 +125,14 @@ class LoRABottleneck(nn.Module):
         self.conv3.reset_parameters()
         if hasattr(self, 'lora'):
             # initialize A the same way as the default for nn.Linear and B to zero
-            nn.init.kaiming_uniform_(self.lora_down_1, a=math.sqrt(5))
+            # nn.init.kaiming_uniform_(self.lora_down_1, a=math.sqrt(5))
+            nn.init.ones_(self.lora_down_1)
             nn.init.zeros_(self.lora_up_1)
-            nn.init.kaiming_uniform_(self.lora_down_2, a=math.sqrt(5))
-            nn.init.zeros_(self.lora_up_2)
-            nn.init.kaiming_uniform_(self.lora_down_3, a=math.sqrt(5))
+            # nn.init.kaiming_uniform_(self.lora_down_2, a=math.sqrt(5))
+            nn.init.ones_(self.lora_down_2)
+            nn.init.zeros_(self.lora_up_2)  
+            # nn.init.kaiming_uniform_(self.lora_down_3, a=math.sqrt(5))
+            nn.init.ones_(self.lora_down_2)
             nn.init.zeros_(self.lora_up_3)
         
     def forward(self, x):
