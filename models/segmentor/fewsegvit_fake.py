@@ -95,6 +95,8 @@ class FakeFewSegViT(FewEncoderDecoder):
                 if isinstance(exclude_key, str):
                     if not exclude_key in n:
                         m.requires_grad = False
+                    else:
+                        print('Finetune layer in backbone:', n)
                 elif isinstance(exclude_key, list):
                     count = 0
                     for i in range(len(exclude_key)):

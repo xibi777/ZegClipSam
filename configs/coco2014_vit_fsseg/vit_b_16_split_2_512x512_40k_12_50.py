@@ -7,10 +7,10 @@ img_size = 512
 in_channels = 768 # 512?
 out_indices = [11]
 
-base_class = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 
-             29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 
-             56, 57, 58, 60, 61, 62, 64, 65, 66, 68, 69, 70, 72, 73, 74, 76, 77, 78, 80]
-novel_class = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67, 71, 75, 79]
+base_class = [0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 
+             28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 
+             55, 56, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 71, 72, 74, 75, 76, 78, 79, 80]
+novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
 both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
              19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 
              36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
@@ -18,10 +18,11 @@ both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
              70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 num_classes = len(base_class)
 
+
 pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
 eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
-eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_supp_2_5_1000.npy'
+eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_supp_2_1000.npy'
 
 model = dict(
     type='BinaryFewSegViT',
@@ -61,7 +62,7 @@ model = dict(
     novel_class = novel_class,
     both_class = both_class,
     split = 2,
-    shot = 5,
+    shot = 1,
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,
     ft_backbone = False,
@@ -81,6 +82,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=8,
-            workers_per_gpu=8,)
+data = dict(samples_per_gpu=1,
+            workers_per_gpu=1,)
 

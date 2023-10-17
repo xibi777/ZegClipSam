@@ -139,9 +139,9 @@ class BinaryFewSegViT(FewEncoderDecoder):
         return seg_logits
 
     @auto_fp16(apply_to=('img', ))
-    def forward(self, img, img_metas, return_loss=True, **kwargs):
+    def forward(self, img, img_metas, gt_semantic_seg, support_info, return_loss=True, **kwargs):
         if return_loss:
-            return self.forward_train(img, img_metas, **kwargs)
+            return self.forward_train(img, img_metas, gt_semantic_seg, support_info, **kwargs)
         else:
             ## register novel prototypies:
             if len(self.base_class) != len(self.both_class): #generalized few-shot setting
@@ -157,174 +157,60 @@ class BinaryFewSegViT(FewEncoderDecoder):
         visual_feat = self.backbone(img)
         return visual_feat
 
-    def extract_novel_proto(self, dir, npy_path):
-        ##  From support set!
-        sup_npy = np.load(npy_path, allow_pickle=True)
-        sup_name = sup_npy[self.pair_test]
-        cls_num_img = int(1000/len(self.novel_class)) # voc:200, coco:50 #1000
-        cls_label = self.novel_class[int(self.pair_test/cls_num_img)] #200!!! means the target class
-
-        if len(sup_name) == 5: ## 5-shot
-            for k in range(5):
-                sup_name_k = sup_name[k]
-                if len(self.CLASSES) == 81:
-                    image_path = dir + '/JPEGImages/val2014/' + str(sup_name_k) + '.jpg'
-                    label_path = dir + '/Annotations/val_contain_crowd/' + str(sup_name_k) + '.png'
-                elif len(self.CLASSES) == 21:
-                    image_path = dir + '/JPEGImages/' + str(sup_name_k) + '.jpg'
-                    label_path = dir + '/Annotations/' + str(sup_name_k) + '.png'
-                else:
-                    assert AttributeError('Do not support this dataset')
-
-                image = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
-                image = np.float32(image) # (0-255)
-                label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE) # 0 is the background
-
-                ## check the image and label
-                image, label = self.val_supp_transform(image, label)
-                try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
-                except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-                # label[label==0] = 255 ## ignore the ground truth label
-                # label[label!=255] -= 1
-                label = label.unsqueeze(0)
-
-                if k==0:
-                    images = image
-                    labels = label
-                else:
-                    images = torch.concat((images, image), dim=0)
-                    labels = torch.concat((labels, label), dim=0)
-
-            # get all patch features
-            with torch.no_grad():
-                patch_embeddings = self.extract_feat(images)[0][0]  ## V1: (bs, dim, 32, 32) dino+vpt better
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
-
-            # obtain the mask
-            # label = F.interpolate(label.unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
-            patch_embeddings = F.interpolate(patch_embeddings, size=label.shape[-2:], mode='nearest')
-            binary_labels = torch.zeros_like(labels).to(patch_embeddings.device)
-            # print('label:', label.unique())
-            # print('cls:', cls_label)
-            binary_labels[labels == cls_label] = 1
-            assert binary_labels.sum() != 0
-            
-            fake_labels = torch.zeros_like(binary_labels)
-            fake_labels[binary_labels == 0] = 1
-
-            # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
-            # novel_proto = ((torch.einsum("bdhw,bhw->bdhw", patch_embeddings, binary_labels).sum(-1).sum(-1)) / (binary_labels.sum(-1).sum(-1).unsqueeze(-1))).mean(dim=0)  # dim
-            # fake_proto = ((torch.einsum("bdhw,bhw->bdhw", patch_embeddings, fake_labels).sum(-1).sum(-1)) / (fake_labels.sum(-1).sum(-1).unsqueeze(-1))).mean(dim=0)
-            
-            for n_p in range(5):
-                if n_p ==0 :
-                    novel_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), binary_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / binary_labels[n_p].sum()  # dim
-                    fake_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), fake_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / fake_labels[n_p].sum()  # dim
-                else:
-                    novel_proto += (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), binary_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / binary_labels[n_p].sum()  # dim
-                    fake_proto += (torch.einsum("dhw,hw->dhw", patch_embeddings[n_p].squeeze(), fake_labels[n_p].to(patch_embeddings[n_p].device)).sum(-1).sum(-1)) / fake_labels[n_p].sum()  # dim
-            
-            # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
-
-            bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
-            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
-
-        else: # 1-shot
-            if len(self.CLASSES) == 81:
-                image_path = dir + '/JPEGImages/val2014/' + str(sup_name) + '.jpg'
-                label_path = dir + '/Annotations/val_contain_crowd/' + str(sup_name) + '.png'
-            if len(self.CLASSES) == 21:
-                image_path = dir + '/JPEGImages/' + str(sup_name) + '.jpg'
-                label_path = dir + '/Annotations/' + str(sup_name) + '.png'
-
-            image = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
-            image = np.float32(image) # (0-255)
-            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE) # 0 is the background
-
-            ## check the image and label
-            image, label = self.val_supp_transform(image, label)
-            try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
-            except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
-            # label[label==0] = 255 ## ignore the ground truth label
-            # label[label!=255] -= 1
-
-            # get all patch features
-            with torch.no_grad():
-                patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
-
-            # obtain the mask
-            patch_embeddings = F.interpolate(patch_embeddings, size=label.shape[-2:], mode='nearest')
-            binary_label = torch.zeros_like(label)
-            binary_label[label == cls_label] = 1
-            # print('i:', self.pair_test)
-            # print('label:', label.unique())
-            # print('cls:', cls_label)
-            assert binary_label.sum() != 0
-            # if binary_label.sum() != 0 :
-            #     novel_proto = (patch_embeddings.squeeze().sum(-1).sum(-1))/(512*512)
-            # else:
-            # patch_embeddings = F.interpolate(patch_embeddings, size=binary_label.size(), mode='bilinear', align_corners=False)
-            novel_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
-
-            fake_label = torch.zeros_like(binary_label)
-            fake_label[binary_label == 0] = 1
-            # fake_label[label == 255] = 0
-            fake_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), fake_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / fake_label.sum()  # dim
-            # fake_proto = (fake_proto + self.decode_head.base_qs.mean(dim=0)) / 2
-
-             # fake_novel_proto = torch.concat(((fake_proto.unsqueeze(0)/5), (novel_proto.unsqueeze(0)/5)), dim=0)
-            bg_proto = self.decode_head.base_qs[0].to(novel_proto.device).to(novel_proto.dtype).unsqueeze(0)
-            fake_novel_proto = torch.concat((bg_proto, (novel_proto.unsqueeze(0)/5)), dim=0)
-            
-        # return novel_proto
-        self.supp_cls = cls_label
-        return fake_novel_proto
-
-    def extract_base_proto_epoch(self, qs, patch_features, targets):
+    def extract_bg_base_epoch(self, patch_features, masks, bs):
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
-        assert patch_features.shape[0] == targets.shape[0]
-        # patch_features = F.interpolate(patch_features, size=targets.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
-        targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
+        assert patch_features.shape[0] == masks.shape[0]
+        support_shot = (patch_features.shape[0]/bs)
+        patch_features = F.interpolate(patch_features, size=masks.shape[-2:], mode='bilinear', align_corners=False) ## (512, 512)
+        # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
 
-        qs_epoch = torch.zeros_like(qs) # [15, dim]
-        num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)
-
+        bg_base_protos = torch.zeros(bs, 2, patch_features.shape[1]).to(patch_features.device)  #(c, bg+base, dim)
         n = 0
-        for targets_per_image in targets:
+        for mask in masks:
             # for n th image in a batch
-            gt_cls = targets_per_image.unique()
-            gt_cls = gt_cls[gt_cls != 255]
-            if len(gt_cls) != 0:
-                for cls in gt_cls:
-                    num_base[cls] += 1
-                    binary_mask = torch.zeros_like(patch_features[0,0])
-                    binary_mask[targets_per_image == cls] = 1
-                    proto_cls = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
-                    qs_epoch[cls, :] = proto_cls
+            c_n = n % bs
+            
+            binary_mask_bg = torch.ones_like(mask)
+            binary_mask_bg[mask == 1] = 0
+            
+            # assert binary_mask_bg.sum() != 0 and mask.sum() != 0
+            if binary_mask_bg.sum() != 0:
+                bg_proto = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask_bg).sum(-1).sum(-1)) / binary_mask_bg.sum()
+                bg_base_protos[c_n, 0] += bg_proto
+            if mask.sum() != 0:
+                base_proto = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), mask).sum(-1).sum(-1)) / mask.sum()
+                bg_base_protos[c_n, 1] += base_proto
+                
             n += 1
+        return bg_base_protos / support_shot
 
-        # norm for each base classes
-        qs_epoch[num_base!=0] = qs_epoch[num_base!=0] / num_base[num_base!=0].unsqueeze(-1) #(15, 768)
-        return qs_epoch
-
-
-    def forward_train(self, img, img_metas, gt_semantic_seg):
+    def forward_train(self, img, img_metas, gt_semantic_seg, support_info):
         # print('check_weights_clip_vpt:', self.backbone.prompt_embeddings.sum())
         # print('check_weights_clip_vpt:', self.backbone.prompt_embeddings.requires_grad)
         ## check whether this image includes novel classes, gt:(bs, 1, 512, 512)
+        bs = img.shape[0]
         assert gt_semantic_seg.unique() not in self.novel_class
-        if len(self.base_class) != len(self.both_class): # few-shot setting
-            gt_semantic_seg = torch.Tensor(self.visibility_seen_mask).type_as(gt_semantic_seg)[gt_semantic_seg]
+        
+        ## get the support image from support_info
+        if support_info:
+            for i_s in range(len(support_info)):
+                if i_s == 0:
+                    img_support = support_info[i_s]['img']
+                    gt_semantic_seg_support = support_info[i_s]['gt_semantic_seg']
+                else:
+                    img_support = torch.concat([img_support, support_info[i_s]['img']], dim=0)
+                    gt_semantic_seg_support = torch.concat([gt_semantic_seg_support, support_info[i_s]['gt_semantic_seg']], dim=0)
+                
+        gt_semantic_seg[gt_semantic_seg!=0] == 1 # set all the mask info binary
+        gt_semantic_seg_support[gt_semantic_seg_support!=0] == 1 # set all the mask info binary
 
         # print('gt:', gt_semantic_seg.unique())
-        visual_feat = self.extract_feat(img) # (bs, 1025, 768)
+        visual_feat = self.extract_feat(img) # (bs*(1+s), 1025, 768)
+        with torch.no_grad():
+            visual_feat_support = self.extract_feat(img_support)[0][0].clone().detach()
         feat = []
         feat.append(visual_feat)
-        qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
+        qs_epoch = self.extract_bg_base_epoch(visual_feat_support, gt_semantic_seg_support.squeeze(), bs)
 
         losses = dict()
         loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch)

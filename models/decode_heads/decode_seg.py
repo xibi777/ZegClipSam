@@ -414,7 +414,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.0 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 
@@ -883,10 +883,10 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             elif isinstance(m, nn.LayerNorm):
                 constant_init(m, val=1.0, bias=0.0)
 
-    def forward_train(self, inputs, img_metas, gt_semantic_seg, qs_epoch, train_cfg):
-        seg_logits = self.forward(inputs, qs_epoch=qs_epoch)
+    def forward_train(self, inputs, img_metas, gt_semantic_seg, bg_base_epoch, train_cfg):
+        seg_logits = self.forward(inputs, bg_base_epoch)
 
-        gt_semantic_seg[gt_semantic_seg==-1] = 255
+        # gt_semantic_seg[gt_semantic_seg==-1] = 255
         losses = self.losses(seg_logits, gt_semantic_seg)
 
         return losses
@@ -912,7 +912,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         return self.forward_binary(inputs, novel_queries=novel_queries)
 
     def get_cls_token(self, patch_token, protos):
-        # patch_token(bs, 768, 32, 32) -> (bs, L, 768) protos(15/20, 768)
+        # patch_token(bs, 768, 32, 32) -> (bs, L, 768) protos(bs, 2(bg+base), 768)
         B, D, _ ,_ = patch_token.size()
         patch_token = patch_token.reshape(B, D, -1).permute(0, 2, 1)
         L = patch_token.size(1)
@@ -923,7 +923,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         cls_token = (cls_token.unsqueeze(-1) * patch_token).sum(1) # (bs, L, D) -> (bs, D)
         return cls_token
 
-    def semantic_inference(self, mask_pred, seen_idx, weight=-0.2):
+    def semantic_inference(self, mask_pred, seen_idx, weight): #-0.2?
         mask_pred = mask_pred.sigmoid()
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
@@ -944,6 +944,13 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         C, dim = q.shape
         bs, _ = cls.shape
         q = q.expand(bs, -1, -1)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q)
+        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+        return q_
+    
+    def get_qs_bgbase(self, q, cls):
+        # q: (bs, 2(bg+base), 512) cls: (bs, 512)
+        bs, dim = cls.shape
         q1 = torch.einsum("bd,bcd->bcd", cls, q)
         q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
         return q_
@@ -1071,7 +1078,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             return out["pred"]              
         return out
 
-    def forward(self, inputs, qs_epoch=None, novel_queries=None):
+    def forward(self, inputs, bg_base_epoch):  #protos(bs, 2(bg+base), 768)
         patch_token = inputs[0][0]
         cls_token = inputs[0][1]
         
@@ -1102,24 +1109,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
 
         lateral = laterals[-1]
 
-        if not self.training:
-            # REGISTER NOVEL: concat the novel queries in the right position
-            both_proto = torch.zeros([len(self.all_idx), self.dim]).to(lateral.device)
-            if novel_queries is not None:
-                both_proto[self.seen_idx] = self.base_qs.clone()
-                # print('Novel!:', novel_queries.sum(-1))
-                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
-            else:
-                both_proto[:] = self.base_qs.clone()
-
-            q = both_proto.repeat(bs, 1, 1)
-            q = self.q_proj(q).transpose(0, 1)
-        else:
-            q = self.base_qs.repeat(bs, 1, 1)
-            q = self.q_proj(q).transpose(0, 1)
-            self.cur_iter += 1
-            mom = self.update_m()
-            self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
+        q = self.q_proj(self.get_qs_bgbase(bg_base_epoch, cls_token)).transpose(0, 1)
 
         assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
 

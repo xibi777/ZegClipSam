@@ -33,6 +33,81 @@ def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
 
+class LoRALayer():
+    def __init__(
+        self, 
+        r: int, 
+        lora_alpha: int, 
+        lora_dropout: float,
+        merge_weights: bool,
+    ):
+        self.r = r
+        self.lora_alpha = lora_alpha
+        # Optional dropout
+        if lora_dropout > 0.:
+            self.lora_dropout = nn.Dropout(p=lora_dropout)
+        else:
+            self.lora_dropout = lambda x: x
+        # Mark the weight as unmerged
+        self.merged = False
+        self.merge_weights = merge_weights
+
+
+class ConvLoRA(nn.Module, LoRALayer):
+    def __init__(self, conv_module, in_channels, out_channels, kernel_size, r=8, lora_alpha=1, lora_dropout=0., merge_weights=True, **kwargs):
+        super(ConvLoRA, self).__init__()
+        self.conv = conv_module(in_channels, out_channels, kernel_size, **kwargs)
+        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, merge_weights=merge_weights)
+        assert isinstance(kernel_size, int)
+        # Actual trainable parameters
+        if r > 0:
+            self.lora_A = nn.Parameter(
+                self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))
+            )
+            self.lora_B = nn.Parameter(
+              self.conv.weight.new_zeros((out_channels//self.conv.groups*kernel_size, r*kernel_size))
+            )
+            self.scaling = self.lora_alpha / self.r
+            # Freezing the pre-trained weight matrix
+            self.conv.weight.requires_grad = False
+        self.reset_parameters()
+        self.merged = False
+
+    def reset_parameters(self):
+        self.conv.reset_parameters()
+        if hasattr(self, 'lora_A'):
+            # initialize A the same way as the default for nn.Linear and B to zero
+            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_B)
+
+    def train(self, mode=True):
+        super(ConvLoRA, self).train(mode)
+        if mode:
+            if self.merge_weights and self.merged:
+                if self.r > 0:
+                    # Make sure that the weights are not merged
+                    self.conv.weight.data -= (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling
+                self.merged = False
+        else:
+            if self.merge_weights and not self.merged:
+                if self.r > 0:
+                    # Merge the weights and mark it
+                    self.conv.weight.data += (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling
+                self.merged = True
+
+    def forward(self, x):
+        if self.r > 0 and not self.merged: # self.merged=False
+            # print('lora_weight', ((self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling).sum())
+            return self.conv._conv_forward(
+                x, 
+                self.conv.weight + (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling,
+                self.conv.bias
+            )
+        return self.conv(x)
+
+class Conv2d(ConvLoRA):
+    def __init__(self, *args, **kwargs):
+        super(Conv2d, self).__init__(nn.Conv2d, *args, **kwargs)
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -80,69 +155,39 @@ class LoRABottleneck(nn.Module):
         self.inplanes = inplanes
         self.planes = planes
 
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.conv1 = Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = BatchNorm(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
+        self.conv2 = Conv2d(planes, planes, kernel_size=3, stride=stride,
                                padding=1, bias=False)
         self.bn2 = BatchNorm(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.conv3 = Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
         self.bn3 = BatchNorm(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
         ## Initialize LoRA
-        self.r = 4 #4/8
+        self.r = 8 #4/8
         self.lora_alpha = 1
-        if self.r > 0:
-            # self.lora_A = nn.Parameter(
-            #     self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))
-            # )
-            # self.lora_B = nn.Parameter(
-            #   self.conv.weight.new_zeros((out_channels//self.conv.groups*kernel_size, r*kernel_size))
-            # )
-            self.lora_down_1 = nn.Parameter(self.conv1.weight.new_zeros((self.r * 1, inplanes * 1)))
-            self.lora_up_1 = nn.Parameter(self.conv1.weight.new_zeros((planes//self.conv1.groups * 1, self.r * 1)))
-            self.lora_down_2 = nn.Parameter(self.conv2.weight.new_zeros((self.r * 3, planes * 3)))
-            self.lora_up_2 = nn.Parameter(self.conv2.weight.new_zeros((planes//self.conv2.groups * 3, self.r * 3)))
-            self.lora_down_3 = nn.Parameter(self.conv3.weight.new_zeros((self.r * 1, planes * 1)))
-            self.lora_up_3 = nn.Parameter(self.conv3.weight.new_zeros((planes * self.expansion//self.conv3.groups * 1, self.r * 1)))
-            
-            self.scaling = self.lora_alpha / self.r
-            
-            self.conv1.weight.requires_grad = False
-            self.conv2.weight.requires_grad = False
-            self.conv3.weight.requires_grad = False
-            
-            self.reset_parameters()
 
         self.dropout = nn.Dropout(0.1)
         self.selector = nn.Identity()
         
-    def reset_parameters(self):
-        self.conv1.reset_parameters()
-        self.conv2.reset_parameters()
-        self.conv3.reset_parameters()
-        if hasattr(self, 'lora'):
-            # initialize A the same way as the default for nn.Linear and B to zero
-            # nn.init.kaiming_uniform_(self.lora_down_1, a=math.sqrt(5))
-            nn.init.ones_(self.lora_down_1)
-            nn.init.zeros_(self.lora_up_1)
-            # nn.init.kaiming_uniform_(self.lora_down_2, a=math.sqrt(5))
-            nn.init.ones_(self.lora_down_2)
-            nn.init.zeros_(self.lora_up_2)  
-            # nn.init.kaiming_uniform_(self.lora_down_3, a=math.sqrt(5))
-            nn.init.ones_(self.lora_down_2)
-            nn.init.zeros_(self.lora_up_3)
-        
     def forward(self, x):
         residual = x
         
-        ## merge the params
-        self.conv1.weight.data += (self.lora_up_1 @ self.lora_down_1).view(self.conv1.weight.shape) * self.scaling
-        self.conv2.weight.data += (self.lora_up_2 @ self.lora_down_2).view(self.conv2.weight.shape) * self.scaling
-        self.conv3.weight.data += (self.lora_up_3 @ self.lora_down_3).view(self.conv3.weight.shape) * self.scaling
-
+        # merge the params
+        # print('++++++++++++ merge +++++++++++')
+        # print('self.conv1.weight', self.conv1.conv.weight.data.sum())
+        # print('self.conv2.weight', self.conv2.conv.weight.data.sum())
+        # print('self.conv3.weight', self.conv3.conv.weight.data.sum())
+        # print('self.lora_up_1', self.conv1.lora_A.sum())
+        # print('self.lora_down_1', self.conv1.lora_B.sum())
+        # print('self.lora_up_2', self.conv2.lora_A.sum())
+        # print('self.lora_down_2', self.conv2.lora_B.sum())
+        # print('self.lora_up_3', self.conv3.lora_A.sum())
+        # print('self.lora_down_3', self.conv3.lora_B.sum())
+        
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
@@ -162,83 +207,10 @@ class LoRABottleneck(nn.Module):
 
         return out #(bs, 256, 128, 128)
 
-
-# @BACKBONES.register_module()
-# class ResNet(nn.Module):
-#     def __init__(self, block, layers, num_classes=1000, deep_base=True):
-#         super(ResNet, self).__init__()
-#         self.deep_base = deep_base
-#         if not self.deep_base:
-#             self.inplanes = 64
-#             self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-#             self.bn1 = BatchNorm(64)
-#             self.relu = nn.ReLU(inplace=True)
-#         else:
-#             self.inplanes = 128
-#             self.conv1 = conv3x3(3, 64, stride=2)
-#             self.bn1 = BatchNorm(64)
-#             self.relu1 = nn.ReLU(inplace=True)
-#             self.conv2 = conv3x3(64, 64)
-#             self.bn2 = BatchNorm(64)
-#             self.relu2 = nn.ReLU(inplace=True)
-#             self.conv3 = conv3x3(64, 128)
-#             self.bn3 = BatchNorm(128)
-#             self.relu3 = nn.ReLU(inplace=True)
-#         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-#         self.layer1 = self._make_layer(block, 64, layers[0])
-#         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-#         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-#         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-#         self.avgpool = nn.AvgPool2d(7, stride=1)
-#         self.fc = nn.Linear(512 * block.expansion, num_classes)
-
-#         for m in self.modules():
-#             if isinstance(m, nn.Conv2d):
-#                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-#             elif isinstance(m, BatchNorm):
-#                 nn.init.constant_(m.weight, 1)
-#                 nn.init.constant_(m.bias, 0)
-
-#     def _make_layer(self, block, planes, blocks, stride=1):
-#         downsample = None
-#         if stride != 1 or self.inplanes != planes * block.expansion:
-#             downsample = nn.Sequential(
-#                 nn.Conv2d(self.inplanes, planes * block.expansion,
-#                           kernel_size=1, stride=stride, bias=False),
-#                 BatchNorm(planes * block.expansion),
-#             )
-
-#         layers = []
-#         layers.append(block(self.inplanes, planes, stride, downsample))
-#         self.inplanes = planes * block.expansion
-#         for i in range(1, blocks):
-#             layers.append(block(self.inplanes, planes))
-
-#         return nn.Sequential(*layers)
-
-#     def forward(self, x):
-#         x = self.relu1(self.bn1(self.conv1(x)))
-#         if self.deep_base:
-#             x = self.relu2(self.bn2(self.conv2(x)))
-#             x = self.relu3(self.bn3(self.conv3(x)))
-#         x = self.maxpool(x)
-
-#         x = self.layer1(x)
-#         x = self.layer2(x)
-#         x = self.layer3(x)
-#         x = self.layer4(x)
-
-#         x = self.avgpool(x)
-#         x = x.view(x.size(0), -1)
-#         x = self.fc(x)
-
-#         return x
-
-
 @BACKBONES.register_module()
 class LoRAResNet(nn.Module):
     # def __init__(self, block, layers, num_classes=1000, deep_base=True):
-    def __init__(self, layers, block=LoRABottleneck, num_classes=1000, deep_base=False, pretrained=None, **kwargs):
+    def __init__(self, layers, block1=Bottleneck, block2=LoRABottleneck, num_classes=1000, deep_base=False, pretrained=None, **kwargs):
         super(LoRAResNet, self).__init__()
         self.deep_base = deep_base
         if not self.deep_base:
@@ -258,13 +230,14 @@ class LoRAResNet(nn.Module):
             self.bn3 = BatchNorm(128)
             self.relu3 = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2) 
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer1 = self._make_layer(block2, 64, layers[0])
+        self.layer2 = self._make_layer(block2, 128, layers[1], stride=2) 
+        self.layer3 = self._make_layer(block2, 256, layers[2], stride=2)
+        self.layer4 = self._make_layer(block2, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(16, stride=1)
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.in_fc_dim = 512 * block.expansion
+        # self.mmpool = nn.MaxPool2d(16, stride=1)
+        self.fc = nn.Linear(512 * block2.expansion, num_classes)
+        self.in_fc_dim = 512 * block2.expansion
         self.out_fc_dim = num_classes
         self.pretrained = pretrained
         self.apply(self._init_weights)
@@ -319,22 +292,28 @@ class LoRAResNet(nn.Module):
 
         outs = []
         features = []
+        # print('=================================layer1=================================')
         x = self.layer1(x) #(bs, 256, 128, 128) 
+        # print('=================================layer2=================================')
         x = self.layer2(x) #(bs, 512, 64, 64)
+        # print('=================================layer3=================================')
         x = self.layer3(x) #(bs, 1024, 32, 32)
+        # print('=================================layer4=================================')
         x = self.layer4(x) #(bs, 2024, 16, 16)
 
-        global_embedding = self.avgpool(x).squeeze()
         visual_embedding = x
         
         visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+    
         features.append(visual_embedding)
-        # x = x.view(x.size(0), -1) # (bs, )
-        # x = self.fc(x) + self.dropout_fc(self.lora_fc_up(self.selector(self.lora_fc_down(x)))) * self.scale
+        
         ## get embedding:
+        # global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        
+        global_embedding = self.avgpool(visual_embedding).squeeze()
+        # global_embedding = self.mmpool(visual_embedding).squeeze()
         if global_embedding.shape[0] == 2048:
             global_embedding = global_embedding.unsqueeze(0)
-        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
         proto_embedding = visual_embedding ##ADDED_Norm, fake proto
         
         outs.append(tuple(features))

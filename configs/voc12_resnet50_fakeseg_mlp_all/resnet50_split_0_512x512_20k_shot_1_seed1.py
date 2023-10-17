@@ -1,56 +1,47 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/coco2014_512x512_split_0_fsseg.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
+    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_fully.py',
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
 img_size = 512
-in_channels = 768 # 512?
+in_channels = 2048
+channels = 512
 out_indices = [11]
 
-base_class = [0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 
-             28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 
-             55, 56, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 71, 72, 74, 75, 76, 78, 79, 80]
-novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
-both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
-             19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 
-             36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
-             53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 
-             70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
+base_class = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+novel_class = [1, 2, 3, 4, 5]
+both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 num_classes = len(base_class)
 
+eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_0_shot_1_seed1.txt'
 
-pretrained = '/media/data/ziqin/pretrained/B_16.pth'
-
-eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
-eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_supp_0_1000.npy'
+pretrained = '/media/data/ziqin/pretrained/resnet/resnet50-19c8e357.pth'
 
 model = dict(
-    type='BinaryFewSegViT',
+    type='FakeFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
-        type='PromptImageNetViT',
-        ## ADDED
-        out_indices=out_indices, 
+        type='LoRAResNet',
+        layers=[3, 4, 6, 3],
         pretrained=pretrained, 
-        #setting of vpt
-        num_tokens=50,
-        prompt_dim=768,
-        total_d_layer=11,
         style='pytorch'),
     decode_head=dict(
-        type='BinaryATMSingleHeadSeg',
+        type='FakeHeadSeg',
         img_size=img_size,
         in_channels=in_channels,
         seen_idx=base_class,
         all_idx=both_class,
         channels=in_channels,
         num_classes=num_classes,
-        num_layers=3,
-        num_heads=8,
+        num_layers=1,
+        num_heads=1,
         use_proj=False,
         use_stages=len(out_indices),
         embed_dims=in_channels,
+        rd_type='qclsq',
+        decode_type='mlp',
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
             mask_weight=20.0,
@@ -66,7 +57,7 @@ model = dict(
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,
     ft_backbone = False,
-    exclude_key='prompt',
+    exclude_key='lora',
 )
 
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
@@ -82,6 +73,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=8,
-            workers_per_gpu=8,)
+data = dict(samples_per_gpu=3,
+            workers_per_gpu=3,)
 

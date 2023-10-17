@@ -47,6 +47,7 @@ class BinaryPascalVOCDataset20(CustomDataset):
             split=split, 
             reduce_zero_label=False,
             **kwargs)
+        self.train_list = '/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/class_perimage.npy'
         assert osp.exists(self.img_dir) and self.split is not None
 
     def evaluate(self, results, qry_txt_path, num_novel, split, **kwargs):

@@ -234,7 +234,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries
+        return all_novel_queries/10 ##？？10 is the best? but why
 
     def extract_aug_novel_proto(self, dir, path, way, shot):
         ## load Image and Annotations, no augmentation but how to handle the crop??
@@ -311,7 +311,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries
+        return all_novel_queries/10 ##？？
 
     def extract_base_proto_epoch(self, qs, patch_features, targets):
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)

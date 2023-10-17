@@ -14,9 +14,10 @@ from torch.utils.data import Dataset
 from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
 from mmseg.utils import get_root_logger
 from mmseg.datasets.builder import DATASETS
-from mmseg.datasets.pipelines import Compose, LoadAnnotations
+# from mmseg.datasets.pipelines import Compose, LoadAnnotations
 from PIL import Image
 import cv2
+from mmseg.datasets.builder import PIPELINES
 
 @DATASETS.register_module()
 class BinaryCOCO2014Dataset(CustomDataset):
@@ -58,11 +59,108 @@ class BinaryCOCO2014Dataset(CustomDataset):
         super(BinaryCOCO2014Dataset, self).__init__(
             img_suffix='.jpg', 
             seg_map_suffix='.png', 
-            split=split, 
+            split=split,
             reduce_zero_label=False,
             **kwargs)
+        
+        split_type = int(split.split('_').pop(-1).split('.').pop(0))
+        self.train_list='/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/class_perimage.npy'
+        if split_type == 0:
+            self.base_class = [0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 
+                28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 
+                55, 56, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 71, 72, 74, 75, 76, 78, 79, 80]
+        elif split_type == 1:
+            self.base_class = [0, 1, 3, 4, 5, 7, 8, 9, 11, 12, 13, 15, 16, 17, 19, 20, 21, 23, 24, 25, 27,
+                28, 29, 31, 32, 33, 35, 36, 37, 39, 40, 41, 43, 44, 45, 47, 48, 49, 51, 52, 
+                53, 55, 56, 57, 59, 60, 61, 63, 64, 65, 67, 68, 69, 71, 72, 73, 75, 76, 77, 79, 80]
+        elif split_type == 2:   
+            self.base_class = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 
+                29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 
+                56, 57, 58, 60, 61, 62, 64, 65, 66, 68, 69, 70, 72, 73, 74, 76, 77, 78, 80]
+        elif split_type == 3:   
+            self.base_class = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 
+                29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 45, 46, 47, 49, 50, 51, 53, 54, 
+                55, 57, 58, 59, 61, 62, 63, 65, 66, 67, 69, 70, 71, 73, 74, 75, 77, 78, 79]
+            
         assert osp.exists(self.img_dir) and self.split is not None
+        
+        self.class_perimage = np.load(self.train_list, allow_pickle=True)
+        
+    def pre_pipeline(self, results):
+        """Prepare results dict for pipeline."""
+        results['seg_fields'] = []
+        results['img_prefix'] = self.img_dir
+        results['seg_prefix'] = self.ann_dir
+        if self.custom_classes:
+            results['label_map'] = self.label_map
 
+    def prepare_train_img(self, idx):
+        """Get training data and annotations after pipeline.
+
+        Args:
+            idx (int): Index of data.
+
+        Returns:
+            dict: Training data and annotation after pipeline with new keys
+                introduced by pipeline.
+        """
+
+        # img_info = self.img_infos[idx]
+        # ann_info = self.get_ann_info(idx)
+        # results = dict(img_info=img_info, ann_info=ann_info)
+        # self.pre_pipeline(results)
+        
+        # choose_class = self.base_class[1:][idx % (len(self.base_class) - 1)] #exclude 0 class: bg
+        choose_class = self.base_class[1:][np.random.choice((len(self.base_class) - 1), 1, replace=False)[0]]
+        assert choose_class != 0
+        shot = 5 ## which is better?
+        choose_idx = np.random.choice(len(self.class_perimage[choose_class - 1]), shot+1, replace=False) # the last one is query image
+        results = self.get_img_ann_info(choose_class, choose_idx)
+        return results
+    
+    def get_img_ann_info(self, choose_class, choose_idx):
+        # forquery
+        img_info = dict(filename=self.class_perimage[choose_class - 1][choose_idx[0]] + '.jpg', ann=dict(seg_map=self.class_perimage[choose_class - 1][choose_idx[0]] + '.png'))
+        ann_info = dict(seg_map=self.class_perimage[choose_class - 1][choose_idx[0]] + '.png')
+        results = dict(img_info=img_info, ann_info=ann_info)
+        results['seg_fields'] = []
+        results['img_prefix'] = self.img_dir
+        results['seg_prefix'] = self.ann_dir
+        if self.custom_classes:
+            results['label_map'] = self.label_map
+        results = self.pipeline(results)
+        ## the ground truth should only remain the target label and should be as binary mask seg
+        # binary_gt = results['gt_semantic_seg'].data.clone()
+        # binary_gt[results['gt_semantic_seg'].data!=choose_class] = 255
+        # binary_gt[results['gt_semantic_seg'].data==0] = 0
+        # results['gt_semantic_seg'].data[:] = binary_gt[:]
+        results['gt_semantic_seg'].data[results['gt_semantic_seg'].data!=choose_class] = 0
+        results['gt_semantic_seg'].data[results['gt_semantic_seg'].data==choose_class] = 1
+        
+        results_support = []
+        for i in range(choose_idx.shape[0]-1):
+            img_info = dict(filename=self.class_perimage[choose_class - 1][choose_idx[1+i]] + '.jpg', ann=dict(seg_map=self.class_perimage[choose_class - 1][choose_idx[1+i]] + '.png'))
+            ann_info = dict(seg_map=self.class_perimage[choose_class - 1][choose_idx[1+i]] + '.png')
+            
+            support_results = dict(img_info=img_info, ann_info=ann_info)
+            
+            support_results['seg_fields'] = []
+            support_results['img_prefix'] = self.img_dir
+            support_results['seg_prefix'] = self.ann_dir
+            if self.custom_classes:
+                support_results['label_map'] = self.label_map
+            support_results = self.pipeline(support_results)
+            ## the ground truth should only remain the target label and should be as binary mask seg
+            # binary_gt = support_results['gt_semantic_seg'].data.clone()
+            # binary_gt[support_results['gt_semantic_seg'].data!=choose_class] = 255
+            # binary_gt[support_results['gt_semantic_seg'].data==0] = 0
+            # support_results['gt_semantic_seg'].data[:] = binary_gt[:]
+            support_results['gt_semantic_seg'].data[support_results['gt_semantic_seg'].data!=choose_class] = 0
+            results_support.append(support_results)
+        results['support_info'] = results_support
+            
+        return results
+            
     def evaluate(self, results, qry_txt_path, num_novel, split, **kwargs):
         # modify ground truth
         self.num_novel = num_novel

@@ -20,8 +20,15 @@
 
 # CUDA_VISIBLE_DEVICES="3" python test.py /media/data/ziqin/work_dirs_fss/voc/dino_16_fully_vpt/dino_b_16_fully_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_16_fully_vpt/iter_20000.pth --eval mIoU
 
-bash dist_train_0123.sh configs/voc12/dino_b_16_split_0_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V1
-bash dist_train_0123.sh configs/voc12/dino_b_16_split_1_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_1_V1
-bash dist_train_0123.sh configs/voc12/dino_b_16_split_2_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_2_V1
-bash dist_train_0123.sh configs/voc12/dino_b_16_split_3_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_3_V1
-bash dist_train_0123.sh configs/voc12/dino_b_16_fully_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_16_fully_vpt_V1
+# bash dist_train_0123.sh configs/voc12/dino_b_16_split_0_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V1
+# bash dist_train_0123.sh configs/voc12/dino_b_16_split_1_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_1_V1
+# bash dist_train_0123.sh configs/voc12/dino_b_16_split_2_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_2_V1
+# bash dist_train_0123.sh configs/voc12/dino_b_16_split_3_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_3_V1
+# bash dist_train_0123.sh configs/voc12/dino_b_16_fully_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc/dino_16_fully_vpt_V1
+
+bash dist_train_012.sh configs/voc12_resnet50_all/resnet50_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50/vit_b_16_split_0
+bash dist_train_012.sh configs/voc12_resnet50_all/resnet50_split_1_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50/vit_b_16_split_1
+bash dist_train_012.sh configs/voc12_resnet50_all/resnet50_split_2_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50/vit_b_16_split_2
+bash dist_train_012.sh configs/voc12_resnet50_all/resnet50_split_3_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50/vit_b_16_split_3
+
+bash dist_train_012.sh configs/voc12_resnet50_fakeseg_mlp_all/resnet50_split_0_512x512_20k.py /media/data/ziqin/work_dirs_fss/voc_resnet50_fakeseg_mlp/vit_b_16_split_0

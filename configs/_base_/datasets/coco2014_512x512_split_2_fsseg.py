@@ -19,7 +19,7 @@ train_pipeline = [
     dict(type='Pad', size=crop_size, pad_val=0, seg_pad_val=255),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_semantic_seg']),
-]
+] ## change pipeline
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
