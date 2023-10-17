@@ -113,7 +113,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
         # choose_class = self.base_class[1:][idx % (len(self.base_class) - 1)] #exclude 0 class: bg
         choose_class = self.base_class[1:][np.random.choice((len(self.base_class) - 1), 1, replace=False)[0]]
         assert choose_class != 0
-        shot = 5 ## which is better?
+        shot = 10 ## which is better?
         choose_idx = np.random.choice(len(self.class_perimage[choose_class - 1]), shot+1, replace=False) # the last one is query image
         results = self.get_img_ann_info(choose_class, choose_idx)
         return results
