@@ -31,7 +31,12 @@
 # bash dist_train_0123.sh configs/coco2014_vit_all/vit_b_16_split_2_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_all/vit_b_16_split_2
 # bash dist_train_0123.sh configs/coco2014_vit_all/vit_b_16_split_3_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_all/vit_b_16_split_3
 
-bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_0_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_0
-bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_1_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_1
-bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_2_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_2
-bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_3_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_3
+# bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_0_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_0
+# bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_1_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_1
+# bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_2_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_2
+# bash dist_train_0123.sh configs/coco2014_vit_fsseg/vit_b_16_split_3_512x512_40k_12_50.py /media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_3
+
+bash dist_train_0123.sh configs/coco2014_capl_fix/vit_b_16_split_0_512x512_40k.py /media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_0
+bash dist_train_0123.sh configs/coco2014_capl_fix/vit_b_16_split_1_512x512_40k.py /media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_1
+bash dist_train_0123.sh configs/coco2014_capl_fix/vit_b_16_split_2_512x512_40k.py /media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_2
+bash dist_train_0123.sh configs/coco2014_capl_fix/vit_b_16_split_3_512x512_40k.py /media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_3

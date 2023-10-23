@@ -928,9 +928,9 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
-    def semantic_inference_binary(self, mask_pred, weight=0.0):
+    def semantic_inference_binary(self, mask_pred, weight):
         mask_pred = mask_pred.sigmoid()
-        # mask_pred[:, 0] = mask_pred[:, 0] - weight
+        mask_pred[:, 0] = mask_pred[:, 0] - weight
         return mask_pred
 
     def update_m(self, end_m=1.0, base_m=0.996):
@@ -998,7 +998,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             # REGISTER NOVEL: concat the novel queries in the right position
             # novel_proto = novel_queries.clone().unsqueeze(0)
             # fake_proto = torch.randn_like(novel_proto)
-            fake_novel_proto = novel_queries.clone()
+            bg_novel_proto = novel_queries.clone()
             cls_token = inputs[0][1]
             # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
 
@@ -1031,11 +1031,11 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
 
         if not self.training:
             # q = self.q_proj(self.get_qs(novel_proto.unsqueeze(0), cls_token)).transpose(0, 1)
-            q = self.q_proj(self.get_qs(fake_novel_proto, cls_token)).transpose(0, 1)
+            q = self.q_proj(self.get_qs(bg_novel_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_multihead(novel_proto.unsqueeze(0), cls_token)).transpose(0, 1) # V3
         else:
             ### do not support training
-            q = self.q_proj(self.get_qs(fake_novel_proto, cls_token)).transpose(0, 1)
+            q = self.q_proj(self.get_qs(bg_novel_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             # self.cur_iter += 1
             # mom = self.update_m()
@@ -1074,7 +1074,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference_binary(out["pred_masks"]) ## Change the balance factor： 0.0 is the best
+            out["pred"] = self.semantic_inference_binary(out["pred_masks"], 0.2) ## Change the balance factor： 0.0 is the best
             return out["pred"]              
         return out
 

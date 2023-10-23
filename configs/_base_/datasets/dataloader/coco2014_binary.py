@@ -184,7 +184,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
         mIoU = 0
         total = len(results)
         for i in range(len(results)):
-            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 1)
+            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 2)
             mIoU += intersection/union
 
         print('Total mIoU of 1000 pair-wise novel classes:', mIoU/total)
