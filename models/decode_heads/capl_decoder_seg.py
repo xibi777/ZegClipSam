@@ -240,7 +240,7 @@ class CAPLHeadSeg(BaseDecodeHead):
             #### evaluation
             # if len(gened_proto.size()[:]) == 3:
                 # gened_proto = gened_proto[0] #(1, 5, 768)
-            gened_proto = torch.from_numpy(gened_proto).to(x.device).to(x.dtype)  #(5,768)
+            gened_proto = torch.from_numpy(ç).to(x.device).to(x.dtype)  #(5,768)
             # gened_proto = gened_proto / (torch.norm(gened_proto, 2, 1, True) + 1e-12)
             
             refine_proto = self.post_refine_proto_v2(proto=self.main_proto, x=raw_x) #(1,20,768)

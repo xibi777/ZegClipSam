@@ -291,7 +291,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "configs/coco2014_vit_fakeseg_attn/vit_b_16_split_0_512x512_40k_12_50.py",
+                "configs/coco2014_vit_all_plus/vit_b_16_split_0_512x512_40k_12_50.py",
                 "--work-dir", "./work_dirs/coco/",
             ]
         },
@@ -558,8 +558,8 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/voc12_capl/vit_b_16_split_1_512x512_20k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc12_capl/split_1/iter_10000.pth",
+                "configs/coco2014_capl_fix/vit_b_16_split_0_512x512_40k_shot_1_seed1.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_0/iter_40000.pth",
                 "--eval", "mIoU",
             ]
         },

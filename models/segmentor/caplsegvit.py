@@ -206,7 +206,7 @@ class CAPLSegViT(FewEncoderDecoder):
             # label[label!=255] -= 1
 
             # get all patch features
-            x = self.extract_feat(image)[0][0]
+            x = self.extract_feat(image)[0][0] #(4,768,32,32)
             x = self.decode_head.ppm(x)#(4,768*2,32,32) 
             x = self.decode_head.cls(x)#(4,768,32,32)
 
@@ -223,7 +223,7 @@ class CAPLSegViT(FewEncoderDecoder):
         
         # norm for 1shot or 5shot
         all_novel_queries /= shot
-        return all_novel_queries
+        return all_novel_queries # (novel_class, 768) .abs().mean()=0.015
 
     # def extract_novel_proto(self, dir, path, way, shot):
     #     ## load Image and Annotations, no augmentation but how to handle the crop??
