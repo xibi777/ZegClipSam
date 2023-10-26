@@ -299,6 +299,12 @@ class PlusHeadSeg(BaseDecodeHead):
                 both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
             else:
                 both_proto[:] = self.base_qs.clone()
+                
+            ## the prototype of bg and person is large the others
+            # both_proto[0] = both_proto[0]/10
+            # both_proto[15] = both_proto[15]/10
+            
+            
             cls_token = inputs[0][1]
             # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
             raw_pred = self.get_raw_pred(both_proto, cls_token, patch_token[-1])
@@ -385,6 +391,261 @@ class PlusHeadSeg(BaseDecodeHead):
             out["qs_base"] = qs
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
+        else:
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            return out["pred"]   
+        return out
+
+    def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
+        mask_pred = mask_pred.sigmoid()
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
+        return mask_pred
+
+    def update_m(self, end_m=1.0, base_m=0.996): # 0.996
+        if len(self.novel_idx) == 5: # for voc
+            max_iter = 10000
+        elif len(self.novel_idx) == 20: # for coco
+            max_iter = 40000
+        if self.cur_iter % 100 == 0:
+            print('check prototype value:', self.base_qs.abs().mean(dim=-1))
+        m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
+        return m
+
+    # def get_qs(self, q, cls):
+    #     # q_ = [q.cls, q]
+    #     # q: (base, 512) cls: (bs, 512)
+    #     C, dim = q.shape
+    #     bs, _ = cls.shape
+    #     q = q.expand(bs, -1, -1)
+    #     q1 = torch.einsum("bd,bcd->bcd", cls, q)
+    #     q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+    #     return q_
+
+    def get_qs_save(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, 512) cls: (bs, 512)
+        C, dim = q.shape
+        bs, _ = cls.shape
+        q = q.expand(bs, -1, -1)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q)
+        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+
+        # if q1.shape[1] == 20: ##voc
+        #     rd_path = '/media/data/ziqin/work_dirs_fss/voc_vit_split0_rd.npy'
+        # elif q1.shape[1] == 80: ##voc
+        #     rd_path = '/media/data/ziqin/work_dirs_fss/coco_vit_split0_rd.npy'
+        # else:
+        #     assert AttributeError('Wrong dataset')
+
+        rd_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_rd.npy'
+        cls_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_cls.npy'
+        proto_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_proto.npy'
+            
+        ## save the relationship descriptor #
+        if int(self.test_iter) < 2000:
+            for gt_cls in self.gt_label:
+                rd_i = q1.clone().detach().squeeze().cpu().numpy()[gt_cls]
+                proto_i = q.clone().detach().squeeze().cpu().numpy()[gt_cls]
+                cls_i = cls.clone().detach().squeeze().cpu().numpy()
+
+                self.save_rd[gt_cls].append(rd_i)
+                self.save_proto[gt_cls].append(proto_i)
+                self.save_cls[gt_cls].append(cls_i)
+
+        elif int(self.test_iter) == 2000:
+            np.save(rd_path, self.save_rd)
+            np.save(proto_path, self.save_proto)
+            np.save(cls_path, self.save_cls)
+        # self.test_iter += 1
+        return q_
+
+    def get_qs_multihead(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, 768) cls: (bs, 768) 
+        C, dim = q.shape
+        bs, _ = cls.shape
+        head = 12
+        q = q.expand(bs, -1, -1) #(bs, base, 768)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) #(bs, base, 768)
+        # rd = q1.reshape(bs, C, head, -1) #(bs, base, 12, 64)
+        # cls = cls.reshape(bs, head, -1) #(bs, 12, 64)
+        mh = q1.reshape(bs, C, head, -1).sum(-1) #(bs, base, 12, 64) ->(bs, base, 12)
+        # mh = torch.cosine_similarity(rd, cls.unsqueeze(1)) # (bs, base, 12)
+        # mh = torch.einsum("bhd,bchd->bchd", cls, rd).sum(-1)
+        q_ = torch.concat((q1, q, mh), dim=-1) # (bs, 20, 768+768+12)
+        return q_
+
+    @torch.jit.unused
+    def _set_aux_loss(self, outputs_seg_masks):
+        return [
+            {"pred_masks": a}
+            # for a in zip(outputs_seg_masks[:-1])
+            for a in outputs_seg_masks[:-1]
+        ]
+
+    def d3_to_d4(self, t):
+        n, hw, c = t.size()
+        if hw % 2 != 0:
+            t = t[:, 1:]
+        h = w = int(math.sqrt(hw))
+        return t.transpose(1, 2).reshape(n, c, h, w)
+
+    def d4_to_d3(self, t):
+        return t.flatten(-2).transpose(-1, -2)
+
+    @force_fp32(apply_to=('seg_logit',))
+    def losses(self, seg_logit, seg_label, num_classes=None):
+        """Compute segmentation loss."""
+        if isinstance(seg_logit, dict):
+            # atm loss
+            seg_label = seg_label.squeeze(1)
+
+            loss = self.loss_decode(
+                seg_logit,
+                seg_label,
+                ignore_index = self.ignore_index)
+
+            loss['acc_seg'] = accuracy(seg_logit["pred_masks"], seg_label, ignore_index=self.ignore_index)
+            return loss
+
+
+@HEADS.register_module()
+class PlusHeadSegOnlyRaw(BaseDecodeHead):
+    def __init__(
+            self,
+            img_size,
+            in_channels,
+            seen_idx,
+            all_idx,
+            embed_dims=768,
+            num_layers=3,
+            num_heads=8,
+            use_stages=1,
+            use_proj=True,
+            crop_train=False,
+            **kwargs,
+    ):
+        super(PlusHeadSegOnlyRaw, self).__init__(
+            in_channels=in_channels, **kwargs)
+
+        self.image_size = img_size
+        self.use_stages = use_stages
+        self.crop_train = crop_train
+        self.seen_idx = seen_idx
+        self.all_idx = all_idx
+
+        self.dim = embed_dims
+
+        self.novel_idx = self.all_idx.copy()
+        for i_idx in self.seen_idx:
+            self.novel_idx.remove(i_idx)
+        
+        # self.f_layer = TPN_DecoderLayer(d_model=self.dim, nhead=nhead, dim_feedforward=self.dim * 4)
+        self.f_layer = nn.Linear(self.dim, self.dim, bias=False)
+        
+        delattr(self, 'conv_seg')
+        
+        self.register_buffer("cur_iter", torch.Tensor([0]))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)) * 0.01) ## * 0.01
+        ## bg
+        # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
+        
+        # self.q_proj = nn.Linear(in_channels, embed_dims)
+        # self.q_proj = nn.Linear(in_channels * 2, embed_dims)
+        # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
+        ## ADDED FC for prototype
+        # self.proto_proj = nn.Linear(embed_dims, embed_dims)
+
+    def init_weights(self):
+        for n, m in self.named_modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_init(m, std=.02, bias=0)
+            elif isinstance(m, nn.LayerNorm):
+                constant_init(m, val=1.0, bias=0.0)
+
+    def forward_train(self, inputs, img_metas, gt_semantic_seg, qs_epoch, train_cfg):
+        seg_logits = self.forward(inputs, qs_epoch=qs_epoch)
+
+        gt_semantic_seg[gt_semantic_seg==-1] = 255
+        losses = self.losses(seg_logits, gt_semantic_seg)
+
+        return losses
+
+    def forward_test(self, inputs, img_metas, test_cfg, novel_queries=None):
+        # get the target of each cliped region
+        # ann_path = img_metas[0]['filename'].replace('jpg','png').replace('JPEGImages', 'Annotations')
+        # self.gt_ann = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
+        # self.gt_label = np.unique(self.gt_ann)
+        # self.gt_label[self.gt_label==0] = 255 ## ignore the ground truth label
+        # self.gt_label[self.gt_label!=255] -= 1
+        # self.gt_label = np.delete(self.gt_label, np.where(self.gt_label == 255))
+        if novel_queries is not None:
+            return self.forward(inputs, novel_queries=novel_queries)
+        else:
+            return self.forward(inputs)
+
+    def get_cls_token(self, patch_token, protos):
+        # patch_token(bs, 768, 32, 32) -> (bs, L, 768) protos(15/20, 768)
+        B, D, _ ,_ = patch_token.size()
+        patch_token = patch_token.reshape(B, D, -1).permute(0, 2, 1)
+        L = patch_token.size(1)
+        
+        mu = protos.mean(dim=0) #(768)
+        cls_token = torch.cosine_similarity(patch_token.reshape(-1,D),mu).reshape(B,L) # (bs, L)
+        cls_token = cls_token.softmax(dim=-1)
+        cls_token = (cls_token.unsqueeze(-1) * patch_token).sum(1) # (bs, L, D) -> (bs, D)
+        return cls_token
+    
+    def get_raw_pred(self, protos, cls_tokens, patch_tokens):
+        c, dim = protos.shape
+        bs, _ = cls_tokens.shape
+        _, _, p, p = patch_tokens.shape
+        patch_tokens = patch_tokens.reshape(bs, dim, -1)
+        
+        # if f_layer is a transformer layer
+        # protos_ = self.f_layer(protos.expand(bs, -1, -1).transpose(0, 1), patch_tokens.permute(2, 0, 1))[0].transpose(1, 0) # (c, 768) -> (bs, c, 768)
+        
+        # if f_layer is a weight
+        # protos_ = self.f_layer(protos).expand(bs, -1, -1)
+        
+        protos_ = protos.expand(bs, -1, -1)
+        rd = torch.einsum("bd,bcd->bcd", cls_tokens, protos_)
+        rd = self.f_layer(rd)
+        raw_scores = torch.bmm(rd, patch_tokens).reshape(bs, c, p, p)
+        return rd, raw_scores
+        
+
+    def forward(self, inputs, qs_epoch=None, novel_queries=None):
+        patch_token = inputs[0][0]
+        # cls_token = inputs[0][1] 
+
+        if self.training:
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
+            ### [f(proto, patch).cls]T patch
+            qs, raw_pred = self.get_raw_pred(self.base_qs, cls_token, patch_token[-1])
+        else:
+            # REGISTER NOVEL: concat the novel queries in the right position
+            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
+            if novel_queries is not None:
+                both_proto[self.seen_idx] = self.base_qs.clone()
+                # print('Novel!:', novel_queries.sum(-1))
+                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+            else:
+                both_proto[:] = self.base_qs.clone()
+            
+            cls_token = inputs[0][1]
+            # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
+            qs, raw_pred = self.get_raw_pred(both_proto, cls_token, patch_token[-1])
+            
+        pred = F.interpolate(raw_pred, size=(self.image_size, self.image_size),
+                                       mode='bilinear', align_corners=False)
+        
+        out = {"pred_masks": pred}
+        
+        if self.training:
+            out["qs_base"] = qs
         else:
             out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   

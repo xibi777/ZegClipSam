@@ -173,6 +173,7 @@ class FewSegViT(FewEncoderDecoder):
         ## load Image and Annotations, no augmentation but how to handle the crop??
         ## seed from GFS-Seg: 5
         all_novel_queries = np.zeros([way, 768]) # [way, dim]
+        # all_cls_queries = np.zeros([way, 768]) # [way, dim]
 
         # generate label for each image
         labels = [[i]*shot for i in range(way)]
@@ -216,7 +217,9 @@ class FewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
+            novel_support_feat = self.extract_feat(image)
+            patch_embeddings = novel_support_feat[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
+            # cls_embeddings = novel_support_feat[0][1]
             # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
 
             # obtain the mask

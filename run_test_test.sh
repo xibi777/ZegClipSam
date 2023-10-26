@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES="0" python test.py configs/voc12_vit_all_plus_onlyraw/vit_b_16_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc_plus_onlyraw/vit_b_16_split_0_v1/iter_5000.pth --eval=mIoU
+CUDA_VISIBLE_DEVICES="0" python test.py configs/voc12_vit_all_plus/vit_b_16_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc_plus/vit_b_16_split_0/iter_10000.pth --eval=mIoU
