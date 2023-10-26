@@ -234,7 +234,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries/10 ##？？10 is the best? but why
+        return all_novel_queries / 10 ##？？10 is the best? but why
 
     def extract_aug_novel_proto(self, dir, path, way, shot):
         ## load Image and Annotations, no augmentation but how to handle the crop??
@@ -333,7 +333,7 @@ class FewSegViT(FewEncoderDecoder):
                     binary_mask = torch.zeros_like(patch_features[0,0])
                     binary_mask[targets_per_image == cls] = 1
                     proto_cls = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
-                    qs_epoch[cls, :] = proto_cls
+                    qs_epoch[cls, :] += proto_cls
             n += 1
 
         # norm for each base classes

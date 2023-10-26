@@ -624,7 +624,7 @@ class FakeHeadSeg(BaseDecodeHead):
                     binary_mask = torch.zeros_like(patch_features[0,0])
                     binary_mask[targets_per_image == cls] = 1
                     proto_cls = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
-                    qs_epoch[cls, :] = proto_cls
+                    qs_epoch[cls, :] += proto_cls
             n += 1
 
         # norm for each base classes
@@ -1357,7 +1357,7 @@ class BinaryFakeHeadSeg(BaseDecodeHead):
                     binary_mask = torch.zeros_like(patch_features[0,0])
                     binary_mask[targets_per_image == cls] = 1
                     proto_cls = (torch.einsum("dhw,hw->dhw", patch_features[n].squeeze(), binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
-                    qs_epoch[cls, :] = proto_cls
+                    qs_epoch[cls, :] += proto_cls
             n += 1
 
         # norm for each base classes

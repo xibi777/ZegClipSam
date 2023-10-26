@@ -209,11 +209,12 @@ class PlusHeadSeg(BaseDecodeHead):
         self.decoder = atm_decoders
         
         self.f_layer = TPN_DecoderLayer(d_model=self.dim, nhead=nhead, dim_feedforward=self.dim * 4)
+        # self.f_layer = nn.Linear(self.dim, self.dim, bias=False)
         
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)) * 0.01) ## * 0.01
         ## bg
         # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
         
@@ -269,7 +270,12 @@ class PlusHeadSeg(BaseDecodeHead):
         _, _, p, p = patch_tokens.shape
         patch_tokens = patch_tokens.reshape(bs, dim, -1)
         
+        # if f_layer is a transformer layer
         protos_ = self.f_layer(protos.expand(bs, -1, -1).transpose(0, 1), patch_tokens.permute(2, 0, 1))[0].transpose(1, 0) # (c, 768) -> (bs, c, 768)
+        
+        # if f_layer is a weight
+        # protos_ = self.f_layer(protos).expand(bs, -1, -1)
+        
         rd = torch.einsum("bd,bcd->bcd", cls_tokens, protos_)
         raw_scores = torch.bmm(rd, patch_tokens).reshape(bs, c, p, p)
         return raw_scores
@@ -336,8 +342,10 @@ class PlusHeadSeg(BaseDecodeHead):
             q = self.base_qs.expand(bs, -1, -1).transpose(0, 1)
             
             ## update self.base_qs
-            self.cur_iter += 1
             mom = self.update_m()
+            self.cur_iter += 1
+            if self.cur_iter % 100 == 0:
+                print('check momentum:', qs_epoch.abs().mean(dim=-1))
             self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
 
         assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
@@ -370,7 +378,7 @@ class PlusHeadSeg(BaseDecodeHead):
                                           size=(self.image_size, self.image_size),
                                           mode='bilinear', align_corners=False)
         
-        pred_final = raw_pred + self.fuse_pred * pred
+        pred_final = raw_pred + self.fuse_pred * pred ## need sigmoid?
         out = {"pred_masks": pred_final}
         
         if self.training:
@@ -378,7 +386,7 @@ class PlusHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 
@@ -388,8 +396,13 @@ class PlusHeadSeg(BaseDecodeHead):
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
 
-    def update_m(self, end_m=1.0, base_m=0.996):
-        max_iter = 20000
+    def update_m(self, end_m=1.0, base_m=0.996): # 0.996
+        if len(self.novel_idx) == 5: # for voc
+            max_iter = 10000
+        elif len(self.novel_idx) == 20: # for coco
+            max_iter = 40000
+        if self.cur_iter % 100 == 0:
+            print('check prototype value:', self.base_qs.abs().mean(dim=-1))
         m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
         return m
 

@@ -1,1 +1,1 @@
-python test.py configs/coco2014_capl_fix/vit_b_16_split_0_512x512_40k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_0/iter_40000.pth --eval=mIoU  --savetxt='/media/data/ziqin/work_dirs_fss/coco_vit_capl_fix/vit_b_16_split_0/shot1_results_40000_unseen00_bg00_norm00.txt'
+CUDA_VISIBLE_DEVICES="0" python test.py configs/voc12_vit_all_plus_onlyraw/vit_b_16_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc_plus_onlyraw/vit_b_16_split_0_v1/iter_5000.pth --eval=mIoU

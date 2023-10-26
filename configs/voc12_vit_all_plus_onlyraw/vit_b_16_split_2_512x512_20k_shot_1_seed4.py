@@ -13,7 +13,7 @@ both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
 num_classes = len(base_class)
 
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
-eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_2_shot_1.txt'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_2_shot_1_seed4.txt'
 
 pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
@@ -41,8 +41,8 @@ model = dict(
         num_classes=num_classes,
         num_layers=3,
         num_heads=8,
-        fuse_pred=0,
         use_proj=False,
+        fuse_pred=0,
         use_stages=len(out_indices),
         embed_dims=in_channels,
         loss_decode=dict(
