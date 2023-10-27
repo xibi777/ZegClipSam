@@ -547,7 +547,7 @@ class PlusHeadSegOnlyRaw(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)) * 0.01) ## * 0.01
+        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels))) ## * 0.01
         ## bg
         # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
         
