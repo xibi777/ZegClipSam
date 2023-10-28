@@ -231,7 +231,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         elif len(self.seen_idx) == 61:
             path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
         
-        init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1] ##for 11
+        init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
         self.base_qs.data = init_protos
             
 
