@@ -208,7 +208,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.randn((len(self.seen_idx), in_channels)))
+        self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
         ## bg
         # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
 
@@ -224,6 +224,16 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         # self.save_ave_proto = [[] for i in range(20)]
         # self.save_query = [[] for i in range(20)]
         # self.test_iter = 0
+        
+    def init_proto(self):
+        if len(self.seen_idx) == 16: # voc
+            path = '/media/data/ziqin/code/FewSegViT/configs/_base_/datasets/inti_protos/voc_protos.npy'
+        elif len(self.seen_idx) == 61:
+            path = '/media/data/ziqin/code/FewSegViT/configs/_base_/datasets/inti_protos/coco_protos.npy'
+        
+        init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[-1] ##for 11
+        self.base_qs.data = init_protos
+            
 
     def init_weights(self):
         for n, m in self.named_modules():
@@ -266,6 +276,9 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         return cls_token
 
     def forward(self, inputs, qs_epoch=None, novel_queries=None):
+        if self.cur_iter == 0:
+            self.init_proto()
+        
         patch_token = inputs[0][0]
         # cls_token = inputs[0][1] 
 
@@ -435,7 +448,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         C, dim = q.shape
         bs, _ = cls.shape
         q = q.expand(bs, -1, -1)
-        q1 = torch.einsum("bd,bcd->bcd", cls, q)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 ## check the value
         q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
         return q_
 

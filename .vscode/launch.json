@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "configs/voc12_vit_all_plus/vit_b_16_split_0_512x512_20k_12_10.py",
+                "configs/voc12_vit_all_prompt/vit_b_16_split_0_512x512_20k_12_10.py",
                 "--work-dir", "./work_dirs/voc_split_0",
             ]
         },
@@ -646,7 +646,23 @@
                 "/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
                 "--eval", "mIoU",
             ]
-        },
+        },  
+
+        {
+            "name": "train_init_proto",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/coco_voc_save/coco.py",
+                "--work-dir", "./work_dirs/voc_vit",
+            ]
+        }, 
 
     ]
 }

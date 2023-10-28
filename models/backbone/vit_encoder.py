@@ -245,6 +245,19 @@ class Transformer(nn.Module):
             x = block(x, mask)
         return 
 
+
+class LoRATransformer(nn.Module):
+    def __init__(self, num_layers, dim, num_heads, ff_dim, dropout):
+        super().__init__()
+        self.blocks = nn.ModuleList([
+            LoRAResidualAttentionBlock(dim, num_heads, ff_dim, dropout) for _ in range(num_layers)])
+
+    def forward(self, x, mask=None):
+        for block in self.blocks:
+            x = block(x, mask)
+        return 
+
+
 class MaskTransformer(nn.Module):
     """Transformer with Self-Attentive Blocks"""
     def __init__(self, num_layers, dim, num_heads, ff_dim, dropout):
@@ -677,11 +690,11 @@ class BaseImageNetViT(nn.Module):
 
         ## get proto for q only from dino
         mask = None
-        x_p = x.clone().detach()
-        with torch.no_grad():
-            for blk in self.transformer.blocks:
-                x_p = blk(x_p, mask)
-            x_p = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+        # x_p = x.clone().detach()
+        # with torch.no_grad():
+        #     for blk in self.transformer.blocks:
+        #         x_p = blk(x_p, mask)
+        #     x_p = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
 
         features = []
         outs = []
@@ -691,24 +704,184 @@ class BaseImageNetViT(nn.Module):
             x = blk(x.permute(1, 0, 2), mask).permute(1, 0, 2)
             if len(self.out_indices) > 1: # return the middle features of visual CLIP
                 if i in self.out_indices:
-                    xp = x.permute(1, 0, 2)[:, 1:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    ## norm: layernorm + l2 norm??
+                    xp = x.permute(1,0,2)
+                    xp = self.norm(xp)
+                    xp = xp[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
 
         x = x.permute(1,0,2)
         x = self.norm(x) #LayerNorm: (bs, 1025, 768)
         
+        # global_embedding = x[:, 0]
+        # visual_embedding = x[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
+        # # features.append([global_embedding, visual_embedding])
+        # if len(self.out_indices) == 1: # return the final features after proj
+        #     features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+
+        # outs.append(tuple(features))
+        # outs.append(global_embedding) 
+        # outs.append(x_p) 
+        return features # multi layer features
+
+
+@BACKBONES.register_module()
+class LoRAImageNetViT(nn.Module):
+
+    def __init__(
+        self,  
+        image_size = 512,
+        patches = 16,
+        dim = 768,
+        ff_dim = 3072,
+        num_heads = 12,
+        num_layers = 12,
+        dropout_rate = 0.1,
+        positional_embedding = '1d',
+        in_channels = 3, 
+        out_indices=[11], 
+        pretrained = None,
+        **kwargs
+    ):
+        super().__init__()
+
+        self.pretrained = pretrained
+        self.patch_size = patches
+        self.n_layers = num_layers
+        self.d_model = self.dim = dim
+        self.d_ff = ff_dim
+        self.n_heads = num_heads
+        self.image_size = image_size                
+
+        # Image and patch sizes
+        h, w = (image_size, image_size)  # image sizes
+        fh, fw = (patches, patches)  # patch sizes
+        gh, gw = h // fh, w // fw  # number of patches
+        seq_len = gh * gw + 1
+
+        # Patch embedding
+        self.patch_embedding = nn.Conv2d(in_channels, dim, kernel_size=(fh, fw), stride=(fh, fw))
+        
+        # Positional embedding
+        if positional_embedding.lower() == '1d':
+            self.positional_embedding = PositionalEmbedding1D(seq_len, dim)
+        else:
+            raise NotImplementedError()
+        
+        # Transformer
+        self.transformer = LoRATransformer(num_layers=num_layers, dim=dim, num_heads=num_heads, 
+                                       ff_dim=ff_dim, dropout=dropout_rate)
+
+        self.norm = nn.LayerNorm(dim, eps=1e-6)
+
+        self.w = image_size
+        self.h = image_size
+        # Initialize weights
+        # cls and pos tokens
+        self.class_token = nn.Parameter(torch.zeros(1, 1, dim))
+        # trunc_normal_(self.pos_embed, std=0.02)
+        trunc_normal_(self.class_token, std=0.02)
+        self.apply(self._init_weights)
+
+        # self.apply(self._init_weights)
+        self.num_layers = num_layers
+        self.pretrained = pretrained
+        self.out_indices = out_indices
+        
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            trunc_normal_(m.weight, std=.02)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
+    def init_weights(self, pretrained=None):
+        print('==========> Loading parameters from pretrained model ViT <===========')
+        pretrained = pretrained or self.pretrained
+        if isinstance(pretrained, str):
+            state_dict = torch.load(pretrained, map_location='cpu')
+            # remove `module.` prefix
+            # state_dict = {k.replace("transformer.", ""): v for k, v in state_dict.items()}
+            # remove `backbone.` prefix induced by multicrop wrapper
+            # state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
+
+            if 'positional_embedding.pos_embedding' in state_dict.keys():
+                if self.positional_embedding.pos_embedding.shape != state_dict['positional_embedding.pos_embedding'].shape:
+                    # (1025, 768)                      (197, 768)  
+                    print(f'Resize the pos_embed shape from {state_dict["positional_embedding.pos_embedding"].shape} to {self.positional_embedding.pos_embedding.shape}')
+                    N = state_dict['positional_embedding.pos_embedding'].shape[1] - 1
+
+                    cls_pos = state_dict["positional_embedding.pos_embedding"][:, 0:1, :]
+                    # spatial_pos = F.interpolate(state_dict["positional_embedding"][1:,].reshape(1, 14, 14, 768).permute(0, 3, 1, 2), size=(self.spatial_size, self.spatial_size), mode='bilinear')
+                    spatial_pos = state_dict["positional_embedding.pos_embedding"][:, 1:, :]
+                    w0 = self.w // self.patch_size
+                    h0 = self.h // self.patch_size
+                    # we add a small number to avoid floating point error in the interpolation
+                    # see discussion at https://github.com/facebookresearch/dino/issues/8
+                    w0, h0 = w0 + 0.1, h0 + 0.1
+                    spatial_pos = nn.functional.interpolate(
+                    spatial_pos.reshape(1, int(math.sqrt(N)), int(math.sqrt(N)), self.dim).permute(0, 3, 1, 2),
+                    scale_factor=(w0 / math.sqrt(N), h0 / math.sqrt(N)),mode='bicubic',)
+                    assert int(w0) == spatial_pos.shape[-2] and int(h0) == spatial_pos.shape[-1]
+
+                    spatial_pos = spatial_pos.permute(0, 2, 3, 1).view(1, -1, self.dim)
+                    positional_embedding = torch.cat([cls_pos, spatial_pos], dim=1)
+                    # print('pos_emb:', positional_embedding.shape)
+                    state_dict['positional_embedding.pos_embedding'] = positional_embedding
+                    assert self.positional_embedding.pos_embedding.shape == state_dict['positional_embedding.pos_embedding'].shape
+
+            u, w = self.load_state_dict(state_dict, strict=False)
+            print(u, w, 'are misaligned params in vision transformer') # it should be nothing is misaligned
+
+    def forward(self, x):
+        """Breaks image into patches, applies transformer, applies MLP head.
+        Args:
+            x (tensor): `b,c,fh,fw`
+        """
+        x = self.patch_embedding(x)  # b,d,gh,gw 
+        B, _, H, W = x.shape
+        x = x.flatten(2).transpose(1, 2)  # b,gh*gw,d
+        x = torch.cat((self.class_token.expand(B, -1, -1), x), dim=1)  # b,gh*gw+1,d
+        x = self.positional_embedding(x)  # b,gh*gw+1,d
+
+        mask = None
+        
+        features = []
+        outs = []
+        x = x.permute(1, 0, 2)  # NLD -> LND (1+prompt+n_patches, B, D)
+
+        for i, blk in enumerate(self.transformer.blocks):
+            x = blk(x.permute(1, 0, 2), mask).permute(1, 0, 2)
+            if len(self.out_indices) > 1: # return the middle features of visual CLIP
+                if i in self.out_indices:
+                    ## norm: layernorm + l2 norm??
+                    xp = x.permute(1,0,2)
+                    xp = self.norm(xp)
+                    xp = xp[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2)
+                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
+                    features.append(xp.contiguous())
+
+        x = x.permute(1,0,2)
+        x = self.norm(x) #LayerNorm: (bs, 1025, 768)
+
         global_embedding = x[:, 0]
-        visual_embedding = x[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
-        # features.append([global_embedding, visual_embedding])
-        if len(self.out_indices) == 1: # return the final features after proj
-            features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+        visual_embedding = x[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
+
+        # if len(self.out_indices) == 1: # return the final features after proj
+        #     visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        #     features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+
+        ## get embedding:
+        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
 
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(x_p) 
         return outs
-
-
+    
+    
 
 @BACKBONES.register_module()
 class MaskPromptImageNetViT(nn.Module):

@@ -8,6 +8,7 @@ from models.segmentor.binary_fewsegvit_fake import BinaryFakeFewSegViT
 from models.segmentor.cross_fewsegvit import CrossFewSegViT
 from models.segmentor.caplsegvit import CAPLSegViT
 from models.segmentor.fewsegvit_fake import FakeFewSegViT, MaskFakeFewSegViT
+from models.segmentor.fewsegvit_saveproto import FewSegViTSave
 
 from models.backbone.dino_encoder import BaseVisionTransformer, PromptVisionTransformer
 from models.backbone.mae_encoder import PromptMaskedAutoencoderViT
@@ -23,6 +24,7 @@ from models.decode_heads.cross_decode_seg import CrossATMSingleHeadSeg
 from models.decode_heads.capl_decoder_seg import CAPLHeadSeg
 from models.decode_heads.psp_decode_seg import PSPHeadSeg
 from models.decode_heads.decode_seg_new import PlusHeadSeg, PlusHeadSegOnlyRaw
+from models.decode_heads.decode_seg_save import SaveHeadSeg
 
 from models.losses.atm_loss import SegLossPlus, FCLoss, CECriterion
 
