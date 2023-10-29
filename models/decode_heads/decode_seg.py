@@ -208,22 +208,18 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
-        ## bg
-        # self.bg_qs = nn.Parameter(torch.randn(1, in_channels))
-
-        self.q_proj = nn.Linear(in_channels * 2, embed_dims)
-        # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
-        ## ADDED FC for prototype
-        # self.proto_proj = nn.Linear(embed_dims, embed_dims)
-
-        ## for save rd
-        # self.save_rd = [[] for i in range(20)]
-        # self.save_proto = [[] for i in range(20)]
-        # self.save_cls = [[] for i in range(20)]
-        # self.save_ave_proto = [[] for i in range(20)]
-        # self.save_query = [[] for i in range(20)]
-        # self.test_iter = 0
+        
+        if self.use_stages == 1:
+            self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
+            self.q_proj = nn.Linear(in_channels * 2, embed_dims)
+        else:
+            self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), self.use_stages, in_channels)))
+            q_proj = []
+            for i in range(self.use_stages):
+                q_proj_i = nn.Linear(in_channels * 2, embed_dims)
+                self.add_module("q_proj_{}".format(i + 1), q_proj_i)
+                q_proj.append(q_proj_i)
+            self.q_proj = q_proj
         
     def init_proto(self):
         if len(self.seen_idx) == 16: # voc
@@ -231,7 +227,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         elif len(self.seen_idx) == 61:
             path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
         
-        init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+        if self.use_stages == 1:
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+        else:
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+            
         self.base_qs.data = init_protos
             
 
@@ -279,14 +279,18 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         if self.cur_iter == 0:
             self.init_proto()
         
-        patch_token = inputs[0][0]
-        # cls_token = inputs[0][1] 
-
-        if self.training:
-            cls_token = inputs[0][1]
-            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
+        if self.use_stages == 1:
+            ## only use the last layer
+            patch_token = inputs[0][0] #(bs, dim, 32, 32)
+            cls_token = inputs[0][1] #(bs, dim)
         else:
-            # REGISTER NOVEL: concat the novel queries in the right position
+            ## combine the patch_token from different layers
+            patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
+            patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
+            cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
+            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+
+        if not self.training: # NEEDED modify
             both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
             if novel_queries is not None:
                 both_proto[self.seen_idx] = self.base_qs.clone()
@@ -306,7 +310,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         x = []
         for stage_ in patch_token[:self.use_stages]:
             x.append(self.d4_to_d3(stage_) if stage_.dim() > 3 else stage_)
-        x.reverse()
+        x.reverse() # 11 - 10 - 9 layer
         bs = x[0].size()[0]
 
         laterals = []
@@ -328,7 +332,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                     l_ = self.d4_to_d3(l_)
                     laterals.append(l_ + lateral)
 
-        lateral = laterals[-1]
+        # lateral = laterals[-1]
 
         if not self.training:
             ## ADDED:
@@ -339,7 +343,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
             # both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
     
-            q = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
+            q_stage = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_multihead(both_proto, cls_token)).transpose(0, 1) # V3
 
@@ -364,15 +368,20 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
             
             #### the momentum updated bg !!!!!!!! ()
-            q = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
-            
+            if self.use_stages == 1:
+                q_stage = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            else:
+                ## 
+                rd = self.get_multi_qs(self.base_qs, cls_token)
+                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
+                
             # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             ## update self.base_qs
             self.cur_iter += 1
             mom = self.update_m()
             self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
 
-        assert torch.isnan(q).any()==False and torch.isinf(q).any()==False
+        assert torch.isnan(q_stage).any()==False and torch.isinf(q_stage).any()==False
 
         # query_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_query.npy'
         # if int(self.test_iter) < 2000:
@@ -387,8 +396,12 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         # print('dc:', self.decoder[0].layers[0].linear1.weight.sum())
         # print('dc:', self.decoder[0].layers[0].linear1.weight.requires_grad)
 
+        # reverse q
+        if self.use_stages > 1:
+            q_stage = torch.flip(q_stage, dims=[0]) # for 9,10,11 to 11,10,9
+        
         for idx, decoder_ in enumerate(self.decoder):
-            q_, attn_ = decoder_(q, lateral.transpose(0, 1))
+            q_, attn_ = decoder_(q_stage[idx], laterals[idx].transpose(0, 1))
             for q, attn in zip(q_, attn_):
                 attn = attn.transpose(-1, -2) 
                 attn = self.d3_to_d4(attn)
@@ -427,7 +440,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 
@@ -452,6 +465,16 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
         return q_
 
+    def get_multi_qs(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, stage, 512) cls: (stage, bs, 512)
+        c, s, dim = q.shape
+        s, bs, _ = cls.shape
+        q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) # (s, bs, c, dim)
+        q1 = torch.einsum("sbd,sbcd->sbcd", cls, q) * 100 ## check the value
+        q_ = torch.concat((q1, q), dim=-1) # (stage, bs, c, 512+512)
+        return q_
+    
     def get_qs_save(self, q, cls):
         # q_ = [q.cls, q]
         # q: (base, 512) cls: (bs, 512)

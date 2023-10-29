@@ -442,11 +442,11 @@ class PromptImageNetViT(nn.Module):
         mask = None
         
         ## get proto for q only from dino
-        x_ori = x.clone().detach()
-        with torch.no_grad():
-            for blk in self.transformer.blocks:
-                x_ori = blk(x_ori, mask)
-            ori_patch_embeddings = self.norm(x_ori)[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+        # x_ori = x.clone().detach()
+        # with torch.no_grad():
+        #     for blk in self.transformer.blocks:
+        #         x_ori = blk(x_ori, mask)
+        #     ori_patch_embeddings = self.norm(x_ori)[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
         
         if self.total_d_layer >=0:
             # concat prompt
@@ -470,8 +470,8 @@ class PromptImageNetViT(nn.Module):
                         features.append(xp.contiguous())
         elif self.total_d_layer > 0: # deep
             x, features = self.forward_deep_prompt(x, features, H, W)
-        elif self.total_d_layer < 0:
-            x, features = self.forward_reverse_deep_prompt(x, features, H, W)
+        # elif self.total_d_layer < 0:
+            # x, features = self.forward_reverse_deep_prompt(x, features, H, W)
         else:
             AttributeError('Input correct total_d_layer')
 
@@ -481,17 +481,17 @@ class PromptImageNetViT(nn.Module):
         global_embedding = x[:, 0]
         visual_embedding = x[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
         # features.append([global_embedding, visual_embedding])
-        if len(self.out_indices) == 1: # return the final features after proj
-            visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-            features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+        # if len(self.out_indices) == 1: # return the final features after proj
+        visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
 
         ## get embedding:
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-        ori_patch_embeddings = ori_patch_embeddings / ori_patch_embeddings.norm(dim=1, keepdim=True) ##ADDED_Norm
+        # ori_patch_embeddings = ori_patch_embeddings / ori_patch_embeddings.norm(dim=1, keepdim=True) ##ADDED_Norm
         
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(ori_patch_embeddings) 
+        # outs.append(ori_patch_embeddings) 
         return outs
 
     def forward_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
@@ -518,50 +518,25 @@ class PromptImageNetViT(nn.Module):
             
             if len(self.out_indices) > 1:
                 if i in self.out_indices:
-                    xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
-                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
-                    features.append(xp.contiguous())
+                    if i != 11: #except last layer
+                        xp = hidden_states.permute(1,0,2)
+                        xp = self.norm(xp) #(bs, 1025, 768)
+                        
+                        xp_cls = xp[:, 0] #(bs, dim)
+                        xp_cls = xp_cls / xp_cls.norm(dim=1, keepdim=True) ##ADDED_Norm
+                        
+                        xp_patch = xp[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) #(bs, dim, h, w)
+                        xp_patch = xp_patch / xp_patch.norm(dim=1, keepdim=True) ##ADDED_Norm
+                        
+                        xp_save = []
+                        xp_save.append(xp_cls)
+                        xp_save.append(xp_patch)
+                        features.append(xp_save)
             
             if i == (self.num_layers-2): #10
                 before_last_feats = self.prompt_norm(hidden_states)
 
         encoded = self.prompt_norm(hidden_states) #(1=prompt+1024, 4, 768)
-        if out_last:
-            return before_last_feats
-        else:
-            return encoded, features #only for saving middle features
-
-    def forward_reverse_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
-        mask = None
-        B = embedding_output.shape[1]
-        deep_num_no = (12 - self.deep_prompt_embeddings.shape[0])-1 # (12-9)-1
-
-        for i in range(self.num_layers):
-            if i == 0:
-                hidden_states = (self.transformer.blocks[i](embedding_output.permute(1, 0, 2), mask)).permute(1, 0, 2) #(n_prompt, B, D)
-            elif 0<i<=deep_num_no:
-                hidden_states = (self.transformer.blocks[i](hidden_states.permute(1, 0, 2), mask)).permute(1, 0, 2) #(n_prompt, B, D)
-            else: ## with deep prompts
-                deep_prompt_emb = self.prompt_dropout(self.prompt_proj(self.deep_prompt_embeddings[i-deep_num_no-1]).expand(B, -1, -1)).permute(1, 0, 2) #(n_prompt, B, D)
-                hidden_states = torch.cat((
-                    hidden_states[:1, :, :],
-                    deep_prompt_emb,
-                    hidden_states[-(H*W):, :, :]
-                ), dim=0) #(1+n_prompt+n_patches, B, D)
-
-                hidden_states = (self.transformer.blocks[i](hidden_states.permute(1, 0, 2), mask)).permute(1, 0, 2)
-            
-            if len(self.out_indices) > 1:
-                if i in self.out_indices:
-                    # xp = hidden_states.permute(1, 0, 2)[:, 1+self.num_tokens:, :].permute(0, 2, 1).reshape(B, -1, H, W)
-                    xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
-                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
-                    features.append(xp.contiguous())
-            
-            if i == (self.num_layers-2): #10
-                before_last_feats = self.prompt_norm(hidden_states)
-
-        encoded = self.prompt_norm(hidden_states)
         if out_last:
             return before_last_feats
         else:

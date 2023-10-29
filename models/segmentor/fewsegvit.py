@@ -237,7 +237,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries / 100 ##？？10 is the best? but why
+        return all_novel_queries ##？？10 is the best? but why
 
     def extract_aug_novel_proto(self, dir, path, way, shot):
         ## load Image and Annotations, no augmentation but how to handle the crop??
@@ -314,7 +314,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
-        return all_novel_queries/10 ##？？
+        return all_novel_queries ##？？
 
     def extract_base_proto_epoch(self, qs, patch_features, targets):
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
@@ -344,6 +344,39 @@ class FewSegViT(FewEncoderDecoder):
 
         return qs_epoch
 
+    def extract_base_multi_proto_epoch(self, qs, patch_features, targets):
+        ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
+        assert patch_features[0][1].shape[0] == targets.shape[0]
+        # need .clone().detach() on patch feature??
+        # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
+        # resnet50: patch (bs, 2048. 512, 512)
+        qs_epoch = torch.zeros_like(qs) # [15, dim] resnet:[15,512] (2048-512) with proj
+        num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)
+        use_stages = len(patch_features)
+
+        n = 0 #bs
+        for targets_per_image in targets:
+            # for n th image in a batch
+            gt_cls = targets_per_image.unique()
+            gt_cls = gt_cls[gt_cls != 255]
+            if len(gt_cls) != 0:
+                for cls in gt_cls:
+                    num_base[cls] += 1
+                    binary_mask = torch.zeros_like(targets[0])
+                    binary_mask[targets_per_image == cls] = 1
+                    for i_stage in range(use_stages):
+                        if i_stage != (use_stages-1):
+                            patch_token_cls_i = patch_features[i_stage][1][n].unsqueeze(0).clone().detach()
+                        else:
+                            patch_token_cls_i = patch_features[i_stage][n].unsqueeze(0).clone().detach()
+                        patch_token_cls_i = F.interpolate(patch_token_cls_i, size=targets.shape[-2:], mode='bilinear', align_corners=False).squeeze() ## (512, 512)
+                        proto_cls = (torch.einsum("dhw,hw->dhw", patch_token_cls_i, binary_mask).sum(-1).sum(-1)) / binary_mask.sum()
+                        qs_epoch[cls, i_stage, :] += proto_cls
+            n += 1
+
+        # norm for each base classes
+        qs_epoch[num_base!=0] = qs_epoch[num_base!=0] / num_base[num_base!=0].unsqueeze(-1).unsqueeze(-1) #(16, stage, 768)
+        return qs_epoch
 
     def forward_train(self, img, img_metas, gt_semantic_seg):
         # print('check_weights_clip_vpt:', self.backbone.prompt_embeddings.sum())
@@ -357,8 +390,13 @@ class FewSegViT(FewEncoderDecoder):
         visual_feat = self.extract_feat(img) # (bs, 1025, 768)
         feat = []
         feat.append(visual_feat)
-        qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
-        # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
+        
+        assert self.decode_head.base_qs.shape[1] == len(visual_feat[0])
+        if len(visual_feat[0]) == 1:
+            qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
+            # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
+        else:
+            qs_epoch = self.extract_base_multi_proto_epoch(self.decode_head.base_qs, visual_feat[0], gt_semantic_seg.squeeze())
 
         losses = dict()
         loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch)
