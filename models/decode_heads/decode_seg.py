@@ -222,9 +222,9 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             self.q_proj = q_proj
         
     def init_proto(self):
-        if len(self.seen_idx) == 16: # voc
+        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
             path = '/media/data/ziqin/data/init_protos/voc_protos.npy'
-        elif len(self.seen_idx) == 61:
+        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
             path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
         
         if self.use_stages == 1:
@@ -291,14 +291,17 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
 
         if not self.training: # NEEDED modify
-            both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
+            if self.use_stages == 1:
+                both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
+            else:
+                both_proto = torch.zeros([len(self.all_idx), self.use_stages, self.in_channels]).to(patch_token[0].device)
             if novel_queries is not None:
                 both_proto[self.seen_idx] = self.base_qs.clone()
                 # print('Novel!:', novel_queries.sum(-1))
                 both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
             else:
                 both_proto[:] = self.base_qs.clone()
-            cls_token = inputs[0][1]
+            # cls_token = inputs[0][1]
             # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
 
         ### Test the performance of using pseudo labels
@@ -342,8 +345,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             #### how about use Learnable bg??
             # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
             # both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
-    
-            q_stage = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
+            if self.use_stages == 1:
+                q_stage = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
+            else:
+                rd = self.get_multi_qs(both_proto, cls_token)
+                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
             # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
             # q = self.q_proj(self.get_qs_multihead(both_proto, cls_token)).transpose(0, 1) # V3
 
@@ -371,7 +377,6 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             if self.use_stages == 1:
                 q_stage = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
             else:
-                ## 
                 rd = self.get_multi_qs(self.base_qs, cls_token)
                 q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
                 
@@ -401,7 +406,10 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             q_stage = torch.flip(q_stage, dims=[0]) # for 9,10,11 to 11,10,9
         
         for idx, decoder_ in enumerate(self.decoder):
-            q_, attn_ = decoder_(q_stage[idx], laterals[idx].transpose(0, 1))
+            if len(self.decoder) > 1:
+                q_, attn_ = decoder_(q_stage[idx], laterals[idx].transpose(0, 1))
+            else:
+                q_, attn_ = decoder_(q_stage, laterals[idx].transpose(0, 1))
             for q, attn in zip(q_, attn_):
                 attn = attn.transpose(-1, -2) 
                 attn = self.d3_to_d4(attn)
@@ -440,12 +448,21 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            # out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference_multi(outputs_seg_masks, self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best
             return out["pred"]   
         return out
 
     def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
         mask_pred = mask_pred.sigmoid()
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
+        return mask_pred
+    
+    def semantic_inference_multi(self, mask_preds, seen_idx, weight=0.0): 
+        mask_preds = torch.stack([mask_preds[i] for i in list(range(len(mask_preds)))[self.use_stages-1::self.use_stages]]).squeeze()
+        mask_preds = mask_preds.sigmoid()
+        mask_pred = mask_preds.mean(dim=0, keepdim=True)
         mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
@@ -481,7 +498,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         C, dim = q.shape
         bs, _ = cls.shape
         q = q.expand(bs, -1, -1)
-        q1 = torch.einsum("bd,bcd->bcd", cls, q)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100
         q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
 
         # if q1.shape[1] == 20: ##voc

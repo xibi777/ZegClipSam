@@ -70,13 +70,13 @@ class MultiHeadedSelfAttention(nn.Module):
         self.scores = scores
         return h
 
-    def save_attn_map(self, attn):
+    def save_attn_map(self, scores):
         from PIL import Image
         import matplotlib.pyplot as plt
-        savepath = './work_dirs_fss/head_attn_vit/'
-        b, h, hw1, hw1 = attn.size()
+        savepath = './work_dirs/head_attn_vit/'
+        b, h, hw1, hw1 = scores.size()
         for i in range(h):
-            attn_map = attn[:, i, 0, 1:].reshape(32, 32) #(1, 1024)
+            attn_map = scores[:, i, 0, 1:].reshape(32, 32) #(1, 1024)
             plt.imshow(attn_map.cpu().numpy().squeeze())
             plt.savefig(savepath + str(i) + '.png')
 
@@ -689,16 +689,19 @@ class BaseImageNetViT(nn.Module):
         x = x.permute(1,0,2)
         x = self.norm(x) #LayerNorm: (bs, 1025, 768)
         
-        # global_embedding = x[:, 0]
-        # visual_embedding = x[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
-        # # features.append([global_embedding, visual_embedding])
-        # if len(self.out_indices) == 1: # return the final features after proj
-        #     features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+        global_embedding = x[:, 0]
+        visual_embedding = x[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
+        
+        if len(self.out_indices) == 1: # return the final features after proj
+            visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+            features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
 
-        # outs.append(tuple(features))
-        # outs.append(global_embedding) 
+        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        
+        outs.append(tuple(features))
+        outs.append(global_embedding) 
         # outs.append(x_p) 
-        return features # multi layer features
+        return outs # multi layer features
 
 
 @BACKBONES.register_module()

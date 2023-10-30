@@ -145,8 +145,8 @@ class BinaryFewSegViT(FewEncoderDecoder):
         else:
             ## register novel prototypies:
             if len(self.base_class) != len(self.both_class): 
-                # self.novel_queries = self.extract_novel_proto_binary(self.supp_dir, self.supp_path) #binary
-                self.novel_queries = self.extract_novel_proto_generalized(self.supp_dir, self.supp_path) #generalized
+                self.novel_queries = self.extract_novel_proto_binary(self.supp_dir, self.supp_path) #binary
+                # self.novel_queries = self.extract_novel_proto_generalized(self.supp_dir, self.supp_path) #generalized
                 self.pair_test += 1
                 return self.forward_test(img, img_metas, self.novel_queries, **kwargs) #generalized
             else:

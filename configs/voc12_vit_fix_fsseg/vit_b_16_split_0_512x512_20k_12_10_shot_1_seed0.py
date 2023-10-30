@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_fully.py',
+    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_0_fsseg.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
@@ -7,15 +7,18 @@ img_size = 512
 in_channels = 768 # 512?
 out_indices = [11]
 
-base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-novel_class = []
-both_class = base_class
+base_class = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+novel_class = [1, 2, 3, 4, 5]
+both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 num_classes = len(base_class)
+
+eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_supp_0_1000.npy'
 
 pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
 model = dict(
-    type='FewSegViT',
+    type='BinaryFewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
@@ -24,7 +27,7 @@ model = dict(
         pretrained=pretrained,
         style='pytorch'),
     decode_head=dict(
-        type='ATMSingleHeadSeg',
+        type='BinaryATMSingleHeadSeg',
         img_size=img_size,
         in_channels=in_channels,
         seen_idx=base_class,
@@ -48,6 +51,8 @@ model = dict(
     both_class = both_class,
     split = 0,
     shot = 1,
+    supp_dir = eval_supp_dir,
+    supp_path = eval_supp_path,
     ft_backbone = False,
 )
 
@@ -64,6 +69,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=8,
+            workers_per_gpu=8,)
 
