@@ -52,7 +52,6 @@ model = dict(
     supp_dir = None,
     supp_path = None,
     ft_backbone = False,
-    exclude_key='lora',
 )
 
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,

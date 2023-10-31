@@ -310,8 +310,9 @@ class BinaryFewSegViT(FewEncoderDecoder):
 
                 ## check the image and label
                 image, label = self.val_supp_transform(image, label)
-                try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
-                except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
+                # try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
+                # except: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
+                image = image.unsqueeze(0).to(self.decode_head.base_qs.device)
                 # label[label==0] = 255 ## ignore the ground truth label
                 # label[label!=255] -= 1
                 label = label.unsqueeze(0)
@@ -358,7 +359,7 @@ class BinaryFewSegViT(FewEncoderDecoder):
             if len(self.CLASSES) == 81:
                 image_path = dir + '/JPEGImages/val2014/' + str(sup_name) + '.jpg'
                 label_path = dir + '/Annotations/val_contain_crowd/' + str(sup_name) + '.png'
-            if len(self.CLASSES) == 21:
+            elif len(self.CLASSES) == 21:
                 image_path = dir + '/JPEGImages/' + str(sup_name) + '.jpg'
                 label_path = dir + '/Annotations/' + str(sup_name) + '.png'
 

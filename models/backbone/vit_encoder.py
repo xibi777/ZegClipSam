@@ -73,7 +73,7 @@ class MultiHeadedSelfAttention(nn.Module):
     def save_attn_map(self, scores):
         from PIL import Image
         import matplotlib.pyplot as plt
-        savepath = './work_dirs/head_attn_vit/'
+        import matplotlib.pyplot as plt
         b, h, hw1, hw1 = scores.size()
         for i in range(h):
             attn_map = scores[:, i, 0, 1:].reshape(32, 32) #(1, 1024)

@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_1.py',
+    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_fully.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
@@ -76,6 +76,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=8,
-            workers_per_gpu=8,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 

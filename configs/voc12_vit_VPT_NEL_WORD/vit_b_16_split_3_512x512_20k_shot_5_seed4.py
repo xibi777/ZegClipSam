@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_split_3.py',
+    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_fully.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
