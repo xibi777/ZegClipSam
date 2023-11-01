@@ -70,16 +70,6 @@ class MultiHeadedSelfAttention(nn.Module):
         self.scores = scores
         return h
 
-    def save_attn_map(self, scores):
-        from PIL import Image
-        import matplotlib.pyplot as plt
-        import matplotlib.pyplot as plt
-        b, h, hw1, hw1 = scores.size()
-        for i in range(h):
-            attn_map = scores[:, i, 0, 1:].reshape(32, 32) #(1, 1024)
-            plt.imshow(attn_map.cpu().numpy().squeeze())
-            plt.savefig(savepath + str(i) + '.png')
-
 
 class MaskMultiHeadedSelfAttention(nn.Module):
     """Multi-Headed Dot Product Attention"""

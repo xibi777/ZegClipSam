@@ -294,11 +294,11 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         else:
             ## combine the patch_token from different layers
             patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
-            patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
+            patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32) (9,10,11)layer
             cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
-            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim) (9,10,11)layer
 
-        if not self.training: # NEEDED modify
+        if not self.training:
             if self.use_stages == 1:
                 both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
             else:
@@ -448,8 +448,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            # out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
-            out["pred"] = self.semantic_inference_multi(outputs_seg_masks, self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            # out["pred"] = self.semantic_inference_multi(outputs_seg_masks, self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best
             return out["pred"]   
         return out
 
@@ -459,13 +459,13 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
         return mask_pred
     
-    def semantic_inference_multi(self, mask_preds, seen_idx, weight=0.0): 
-        mask_preds = torch.stack([mask_preds[i] for i in list(range(len(mask_preds)))[self.use_stages-1::self.use_stages]]).squeeze()
-        mask_preds = mask_preds.sigmoid()
-        mask_pred = mask_preds.mean(dim=0, keepdim=True)
-        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
-        mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
-        return mask_pred
+    # def semantic_inference_multi(self, mask_preds, seen_idx, weight=0.0): 
+    #     mask_preds = torch.stack([mask_preds[i] for i in list(range(len(mask_preds)))[self.use_stages-1::self.use_stages]]).squeeze()
+    #     mask_preds = mask_preds.sigmoid()
+    #     mask_pred = mask_preds.mean(dim=0, keepdim=True)
+    #     mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+    #     mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
+    #     return mask_pred
 
     def update_m(self, end_m=1.0, base_m=0.996):
         max_iter = 20000
@@ -1463,3 +1463,354 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             return out["pred"]                  
         return out
        
+       
+
+@HEADS.register_module()
+class MultiATMSingleHeadSeg(BaseDecodeHead):
+    def __init__(
+            self,
+            img_size,
+            in_channels,
+            seen_idx,
+            all_idx,
+            embed_dims=768,
+            num_layers=3,
+            num_heads=8,
+            use_stages=1,
+            cls_type='cls',
+            use_proj=True,
+            crop_train=False,
+            **kwargs,
+    ):
+        super(MultiATMSingleHeadSeg, self).__init__(
+            in_channels=in_channels, **kwargs)
+
+        self.image_size = img_size
+        self.use_stages = use_stages
+        self.crop_train = crop_train
+        self.seen_idx = seen_idx
+        self.all_idx = all_idx
+
+        nhead = num_heads
+        self.dim = embed_dims
+        input_proj = []
+        proj_norm = []
+        atm_decoders = []
+        
+        self.cls_type = cls_type
+
+        self.novel_idx = self.all_idx.copy()
+        for i_idx in self.seen_idx:
+            self.novel_idx.remove(i_idx)
+
+        for i in range(self.use_stages):
+            # FC layer to change ch
+            if use_proj:
+                proj = nn.Linear(self.in_channels, self.dim)
+                trunc_normal_(proj.weight, std=.02)
+            else:
+                proj = nn.Identity()
+            self.add_module("input_proj_{}".format(i + 1), proj)
+            input_proj.append(proj)
+            # norm layer
+            if use_proj:
+                norm = nn.LayerNorm(self.dim)
+            else:
+                norm = nn.Identity()
+            self.add_module("proj_norm_{}".format(i + 1), norm)
+            proj_norm.append(norm)
+            # decoder layer
+            decoder_layer = TPN_DecoderLayer(d_model=self.dim, nhead=nhead, dim_feedforward=self.dim * 4)
+            decoder = TPN_Decoder(decoder_layer, num_layers)
+            self.add_module("decoder_{}".format(i + 1), decoder)
+            atm_decoders.append(decoder)
+
+        self.input_proj = input_proj
+        self.proj_norm = proj_norm
+        self.decoder = atm_decoders
+        delattr(self, 'conv_seg')
+        
+        self.register_buffer("cur_iter", torch.Tensor([0]))
+        
+        if self.use_stages == 1:
+            self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
+            self.q_proj = nn.Linear(in_channels * 2, embed_dims)
+        else:
+            self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), self.use_stages, in_channels)))
+            q_proj = []
+            for i in range(self.use_stages):
+                q_proj_i = nn.Linear(in_channels * 2, embed_dims)
+                self.add_module("q_proj_{}".format(i + 1), q_proj_i)
+                q_proj.append(q_proj_i)
+            self.q_proj = q_proj
+        
+    def init_proto(self):
+        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+            path = '/media/data/ziqin/data/init_protos/voc_protos.npy'
+        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+            path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
+        
+        if self.use_stages == 1:
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+        else:
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+            
+        self.base_qs.data = init_protos
+            
+
+    def init_weights(self):
+        for n, m in self.named_modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_init(m, std=.02, bias=0)
+            elif isinstance(m, nn.LayerNorm):
+                constant_init(m, val=1.0, bias=0.0)
+
+    def forward_train(self, inputs, img_metas, gt_semantic_seg, qs_epoch, train_cfg):
+        seg_logits = self.forward(inputs, qs_epoch=qs_epoch)
+
+        gt_semantic_seg[gt_semantic_seg==-1] = 255
+        losses = self.losses(seg_logits, gt_semantic_seg)
+
+        return losses
+
+    def forward_test(self, inputs, img_metas, test_cfg, novel_queries=None):
+        if novel_queries is not None:
+            return self.forward(inputs, novel_queries=novel_queries)
+        else:
+            return self.forward(inputs)
+
+    def get_cls_token(self, patch_token, protos):
+        # patch_token(bs, 768, 32, 32) -> (bs, L, 768) protos(15/20, 768)
+        B, D, _ ,_ = patch_token.size()
+        patch_token = patch_token.reshape(B, D, -1).permute(0, 2, 1)
+        L = patch_token.size(1)
+        
+        mu = protos.mean(dim=0) #(768)
+        cls_token = torch.cosine_similarity(patch_token.reshape(-1,D),mu).reshape(B,L) # (bs, L)
+        cls_token = cls_token.softmax(dim=-1)
+        cls_token = (cls_token.unsqueeze(-1) * patch_token).sum(1) # (bs, L, D) -> (bs, D)
+        return cls_token
+
+    def forward(self, inputs, qs_epoch=None, novel_queries=None):
+        if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
+            if self.cur_iter == 0:
+                self.init_proto()
+        
+        if self.use_stages == 1:
+            ## only use the last layer
+            patch_token = inputs[0][0] #(bs, dim, 32, 32)
+            if self.cls_type == 'cls':
+                cls_token = inputs[0][1] #(bs, dim)
+            elif self.cls_type == 'ave':
+                cls_token = patch_token[0].mean(-1).mean(-1) #(bs, dim)
+                
+        else:
+            ## combine the patch_token from different layers
+            patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
+            patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
+            cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
+            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+
+        if not self.training: # NEEDED modify
+            if self.use_stages == 1:
+                both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
+            else:
+                both_proto = torch.zeros([len(self.all_idx), self.use_stages, self.in_channels]).to(patch_token[0].device)
+            if novel_queries is not None:
+                both_proto[self.seen_idx] = self.base_qs.clone()
+                # print('Novel!:', novel_queries.sum(-1))
+                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+            else:
+                both_proto[:] = self.base_qs.clone()
+
+        x = []
+        for stage_ in patch_token[:self.use_stages]:
+            x.append(self.d4_to_d3(stage_) if stage_.dim() > 3 else stage_)
+        bs = x[0].size()[0]
+
+        attns = []
+        maps_size = []
+        qs = []
+        
+        if not self.training:
+            if self.use_stages == 1:
+                q_stage = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
+            else:
+                rd = self.get_multi_qs(both_proto, cls_token)
+                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
+
+        else:      
+            #### the momentum updated bg !!!!!!!! ()
+            if self.use_stages == 1:
+                q_stage = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
+            else:
+                rd = self.get_multi_qs(self.base_qs, cls_token)
+                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
+                
+            # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
+            ## update self.base_qs
+            self.cur_iter += 1
+            mom = self.update_m()
+            self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
+
+        assert torch.isnan(q_stage).any()==False and torch.isinf(q_stage).any()==False
+        
+        for idx, decoder_ in enumerate(self.decoder):
+            if len(self.decoder) > 1:
+                q_, attn_ = decoder_(q_stage[idx], x[idx].transpose(0, 1))
+            else:
+                q_, attn_ = decoder_(q_stage, x[idx].transpose(0, 1))
+            for q, attn in zip(q_, attn_):
+                attn = attn.transpose(-1, -2) 
+                attn = self.d3_to_d4(attn)
+                maps_size.append(attn.size()[-2:])
+                qs.append(q.transpose(0, 1))
+                attns.append(attn)
+        qs = torch.stack(qs, dim=0)
+
+        outputs_seg_masks = []
+        size = maps_size[-1]
+
+        for i_attn, attn in enumerate(attns):
+            if True:
+                outputs_seg_masks.append(F.interpolate(attn, size=size, mode='bilinear', align_corners=False))
+            else:
+                outputs_seg_masks.append(outputs_seg_masks[i_attn - 1] +
+                                         F.interpolate(attn, size=size, mode='bilinear', align_corners=False))
+
+        if self.use_stages > 1:
+            fuse_stage_mask = torch.stack([attns[i] for i in list(range(len(attns)))[self.use_stages-1::self.use_stages]]) #()
+            pred = []
+            for i_stage in range(self.use_stages):
+                pred.append(F.interpolate(fuse_stage_mask[i_stage], size=(self.image_size, self.image_size), mode='bilinear', align_corners=False))
+            pred = torch.stack(pred)
+            pred = pred.mean(dim=0) ### but before sigmoid
+            
+        else:
+            pred = F.interpolate(outputs_seg_masks[-1],
+                                          size=(self.image_size, self.image_size),
+                                          mode='bilinear', align_corners=False)
+                                          
+        out = {"pred_masks": pred}
+
+        if self.training:
+            out["qs_base"] = qs
+            # out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
+        else:
+            out["pred"] = self.semantic_inference_multi(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            return out["pred"]   
+        return out
+
+    def semantic_inference(self, mask_pred, seen_idx, weight=0.0): 
+        mask_pred = mask_pred.sigmoid()
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
+        return mask_pred
+    
+    def semantic_inference_multi(self, mask_preds, seen_idx, weight=0.0): 
+        mask_preds = mask_preds.sigmoid()
+        mask_pred = mask_preds.mean(dim=0, keepdim=True)
+        mask_pred[:,0] = mask_pred[:,0] - 0.0 #reduce background, for learnable bg use add bg 0.2
+        mask_pred[:,seen_idx] = mask_pred[:,seen_idx] - weight
+        return mask_pred
+
+    def update_m(self, end_m=1.0, base_m=0.996):
+        max_iter = 20000
+        m = end_m - (end_m - base_m) * (cos(pi * self.cur_iter / float(max_iter)) + 1) / 2
+        return m
+
+    def get_qs(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, 512) cls: (bs, 512)
+        C, dim = q.shape
+        bs, _ = cls.shape
+        q = q.expand(bs, -1, -1)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 ## check the value
+        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+        return q_
+
+    def get_multi_qs(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, stage, 512) cls: (stage, bs, 512)
+        c, s, dim = q.shape
+        s, bs, _ = cls.shape
+        q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) # (s, bs, c, dim)
+        q1 = torch.einsum("sbd,sbcd->sbcd", cls, q) * 100 ## check the value
+        q_ = torch.concat((q1, q), dim=-1) # (stage, bs, c, 512+512)
+        return q_
+    
+    def get_qs_save(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, 512) cls: (bs, 512)
+        C, dim = q.shape
+        bs, _ = cls.shape
+        q = q.expand(bs, -1, -1)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100
+        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+
+        rd_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_rd.npy'
+        cls_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_cls.npy'
+        proto_path = '/media/data/ziqin/code/FewViT/work_dirs_fss/tsne/voc_vit_split0_proto.npy'
+            
+        ## save the relationship descriptor #
+        if int(self.test_iter) < 2000:
+            for gt_cls in self.gt_label:
+                rd_i = q1.clone().detach().squeeze().cpu().numpy()[gt_cls]
+                proto_i = q.clone().detach().squeeze().cpu().numpy()[gt_cls]
+                cls_i = cls.clone().detach().squeeze().cpu().numpy()
+
+                self.save_rd[gt_cls].append(rd_i)
+                self.save_proto[gt_cls].append(proto_i)
+                self.save_cls[gt_cls].append(cls_i)
+
+        elif int(self.test_iter) == 2000:
+            np.save(rd_path, self.save_rd)
+            np.save(proto_path, self.save_proto)
+            np.save(cls_path, self.save_cls)
+        # self.test_iter += 1
+        return q_
+
+    def get_qs_multihead(self, q, cls):
+        # q_ = [q.cls, q]
+        # q: (base, 768) cls: (bs, 768) 
+        C, dim = q.shape
+        bs, _ = cls.shape
+        head = 12
+        q = q.expand(bs, -1, -1) #(bs, base, 768)
+        q1 = torch.einsum("bd,bcd->bcd", cls, q) #(bs, base, 768)
+        mh = q1.reshape(bs, C, head, -1).sum(-1) #(bs, base, 12, 64) ->(bs, base, 12)
+        q_ = torch.concat((q1, q, mh), dim=-1) # (bs, 20, 768+768+12)
+        return q_
+
+    @torch.jit.unused
+    def _set_aux_loss(self, outputs_seg_masks):
+        return [
+            {"pred_masks": a}
+            # for a in zip(outputs_seg_masks[:-1])
+            for a in outputs_seg_masks[:-1]
+        ]
+
+    def d3_to_d4(self, t):
+        n, hw, c = t.size()
+        if hw % 2 != 0:
+            t = t[:, 1:]
+        h = w = int(math.sqrt(hw))
+        return t.transpose(1, 2).reshape(n, c, h, w)
+
+    def d4_to_d3(self, t):
+        return t.flatten(-2).transpose(-1, -2)
+
+    @force_fp32(apply_to=('seg_logit',))
+    def losses(self, seg_logit, seg_label, num_classes=None):
+        """Compute segmentation loss."""
+        if isinstance(seg_logit, dict):
+            # atm loss
+            seg_label = seg_label.squeeze(1)
+
+            loss = self.loss_decode(
+                seg_logit,
+                seg_label,
+                ignore_index = self.ignore_index)
+
+            loss['acc_seg'] = accuracy(seg_logit["pred_masks"], seg_label, ignore_index=self.ignore_index)
+            return loss
