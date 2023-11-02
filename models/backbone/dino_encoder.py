@@ -283,7 +283,7 @@ class PromptVisionTransformer(nn.Module):
         self.norm = norm_layer(embed_dim)
 
         # Classifier head
-        self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        # self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
         trunc_normal_(self.pos_embed, std=.02)
         trunc_normal_(self.cls_token, std=.02)
@@ -416,11 +416,11 @@ class PromptVisionTransformer(nn.Module):
         H = W = int(np.sqrt((x.shape[1]-1)))
 
         ## get proto for q only from dino
-        x_ori = x.clone().detach() #(b, 1025, 768)
-        with torch.no_grad():
-            for blk in self.blocks:
-                x_ori = blk(x_ori)
-            ori_patch_embedding = self.norm(x_ori)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+        # x_ori = x.clone().detach() #(b, 1025, 768)
+        # with torch.no_grad():
+        #     for blk in self.blocks:
+        #         x_ori = blk(x_ori)
+        #     ori_patch_embedding = self.norm(x_ori)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
 
         ## check if freeze the backbone:
         # print('bb:', self.blocks[0].attn.proj.weight.sum())
@@ -452,8 +452,8 @@ class PromptVisionTransformer(nn.Module):
                         features.append(xp.contiguous())
         elif self.total_d_layer > 0: # deep
             x, features = self.forward_deep_prompt(x, features, H, W)
-        elif self.total_d_layer < 0:
-            x, features = self.forward_reverse_deep_prompt(x, features, H, W)
+        # elif self.total_d_layer < 0:
+        #     x, features = self.forward_reverse_deep_prompt(x, features, H, W)
         else:
             AttributeError('Input correct total_d_layer')
 
@@ -463,17 +463,16 @@ class PromptVisionTransformer(nn.Module):
         global_embedding = x[:, 0]
         visual_embedding = x[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
         # features.append([global_embedding, visual_embedding])
-        if len(self.out_indices) == 1: # return the final features after proj
-            visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-            features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
+        visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
 
         ## get embedding:
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-        ori_patch_embedding = ori_patch_embedding / ori_patch_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
-
+        # ori_patch_embeddings = ori_patch_embeddings / ori_patch_embeddings.norm(dim=1, keepdim=True) ##ADDED_Norm
+        
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(ori_patch_embedding) 
+        # outs.append(ori_patch_embeddings) 
         return outs
 
     def forward_deep_prompt(self, embedding_output, features, H, W, out_last=False): #embedding_output=x=(1+n_prompt+n_patches, B, D)
@@ -498,11 +497,27 @@ class PromptVisionTransformer(nn.Module):
                 ), dim=0) #(1+n_patches, B, D)
                 hidden_states = (self.blocks[i](hidden_states.permute(1, 0, 2))).permute(1, 0, 2)
             
+            # if len(self.out_indices) > 1:
+            #     if i in self.out_indices:
+            #         xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
+            #         xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
+            #         features.append(xp.contiguous())
             if len(self.out_indices) > 1:
                 if i in self.out_indices:
-                    xp = hidden_states.permute(1, 0, 2)[:, -(H*W):, :].permute(0, 2, 1).reshape(B, -1, H, W)
-                    xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
-                    features.append(xp.contiguous())
+                    if i != 11: #except last layer
+                        xp = hidden_states.permute(1,0,2)
+                        xp = self.norm(xp) #(bs, 1025, 768)
+                        
+                        xp_cls = xp[:, 0] #(bs, dim)
+                        xp_cls = xp_cls / xp_cls.norm(dim=1, keepdim=True) ##ADDED_Norm
+                        
+                        xp_patch = xp[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2) #(bs, dim, h, w)
+                        xp_patch = xp_patch / xp_patch.norm(dim=1, keepdim=True) ##ADDED_Norm
+                        
+                        xp_save = []
+                        xp_save.append(xp_cls)
+                        xp_save.append(xp_patch)
+                        features.append(xp_save)
             
             if i == (self.num_layers-2): #10
                 before_last_feats = self.prompt_norm(hidden_states)

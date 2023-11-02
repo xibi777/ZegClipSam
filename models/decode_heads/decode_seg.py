@@ -1604,8 +1604,12 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             ## combine the patch_token from different layers
             patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
             patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
-            cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
-            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+            if self.cls_type == 'cls':
+                cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
+                cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+            elif self.cls_type == 'ave':
+                cls_token = torch.stack([patch_token[0][0][i_stage][0].mean(-1).mean(-1) for i_stage in range(self.use_stages-1)])
+                cls_token = torch.concat([cls_token, patch_token[0][1].mean(-1).mean(-1).unsqueeze(0)]) #(use_stage, bs, dim)
             
             ## proj patch
             patch_token = self.patch_proj(patch_token.permute(1, 0, 2, 3, 4).flatten(1, 2).permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
