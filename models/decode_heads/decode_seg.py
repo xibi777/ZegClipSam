@@ -1503,7 +1503,8 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
         for i_idx in self.seen_idx:
             self.novel_idx.remove(i_idx)
 
-        for i in range(self.use_stages):
+        # for i in range(self.use_stages):
+        for i in range(1):
             # FC layer to change ch
             if use_proj:
                 proj = nn.Linear(self.in_channels, self.dim)
@@ -1531,18 +1532,13 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
         delattr(self, 'conv_seg')
         
         self.register_buffer("cur_iter", torch.Tensor([0]))
-        
         if self.use_stages == 1:
             self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
-            self.q_proj = nn.Linear(in_channels * 2, embed_dims)
         else:
             self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), self.use_stages, in_channels)))
-            q_proj = []
-            for i in range(self.use_stages):
-                q_proj_i = nn.Linear(in_channels * 2, embed_dims)
-                self.add_module("q_proj_{}".format(i + 1), q_proj_i)
-                q_proj.append(q_proj_i)
-            self.q_proj = q_proj
+        self.q_proj = nn.Linear(in_channels * 2 * use_stages, embed_dims)
+        if use_stages >1:
+            self.patch_proj = nn.Linear(in_channels * use_stages, embed_dims)
         
     def init_proto(self):
         if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
@@ -1610,6 +1606,10 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
             cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
             cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+            
+            ## proj patch
+            patch_token = self.patch_proj(patch_token.permute(1, 0, 2, 3, 4).flatten(1, 2).permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+            patch_token = [patch_token]
 
         if not self.training: # NEEDED modify
             if self.use_stages == 1:
@@ -1624,7 +1624,8 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 both_proto[:] = self.base_qs.clone()
 
         x = []
-        for stage_ in patch_token[:self.use_stages]:
+        # for stage_ in patch_token[:self.use_stages]:
+        for stage_ in patch_token:
             x.append(self.d4_to_d3(stage_) if stage_.dim() > 3 else stage_)
         bs = x[0].size()[0]
 
@@ -1637,17 +1638,17 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 q_stage = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
             else:
                 rd = self.get_multi_qs(both_proto, cls_token)
-                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
-
+                # q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
+                q_stage = self.q_proj(rd).transpose(0, 1)
         else:      
             #### the momentum updated bg !!!!!!!! ()
             if self.use_stages == 1:
                 q_stage = self.q_proj(self.get_qs(self.base_qs, cls_token)).transpose(0, 1)
             else:
                 rd = self.get_multi_qs(self.base_qs, cls_token)
-                q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # ()
+                # q_stage = torch.stack([self.q_proj[rd_stage](rd[rd_stage]).transpose(0, 1) for rd_stage in range(self.use_stages)]) # (stage, class, dim)
+                q_stage = self.q_proj(rd).transpose(0, 1)
                 
-            # q = self.q_proj(self.get_qs_multihead(self.base_qs, cls_token)).transpose(0, 1)
             ## update self.base_qs
             self.cur_iter += 1
             mom = self.update_m()
@@ -1678,26 +1679,25 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 outputs_seg_masks.append(outputs_seg_masks[i_attn - 1] +
                                          F.interpolate(attn, size=size, mode='bilinear', align_corners=False))
 
-        if self.use_stages > 1:
-            fuse_stage_mask = torch.stack([attns[i] for i in list(range(len(attns)))[self.use_stages-1::self.use_stages]]) #()
-            pred = []
-            for i_stage in range(self.use_stages):
-                pred.append(F.interpolate(fuse_stage_mask[i_stage], size=(self.image_size, self.image_size), mode='bilinear', align_corners=False))
-            pred = torch.stack(pred)
-            pred = pred.mean(dim=0) ### but before sigmoid
+        # if self.use_stages > 1:
+        #     fuse_stage_mask = torch.stack([attns[i] for i in list(range(len(attns)))[self.use_stages-1::self.use_stages]]) #()
+        #     pred = []
+        #     for i_stage in range(self.use_stages):
+        #         pred.append(F.interpolate(fuse_stage_mask[i_stage], size=(self.image_size, self.image_size), mode='bilinear', align_corners=False))
+        #     pred = torch.stack(pred)
+        #     pred = pred.mean(dim=0) ### but before sigmoid
             
-        else:
-            pred = F.interpolate(outputs_seg_masks[-1],
-                                          size=(self.image_size, self.image_size),
-                                          mode='bilinear', align_corners=False)
+        pred = F.interpolate(outputs_seg_masks[-1],
+                                        size=(self.image_size, self.image_size),
+                                        mode='bilinear', align_corners=False)
                                           
         out = {"pred_masks": pred}
 
         if self.training:
             out["qs_base"] = qs
-            # out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
+            out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference_multi(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 
@@ -1737,6 +1737,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
         q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) # (s, bs, c, dim)
         q1 = torch.einsum("sbd,sbcd->sbcd", cls, q) * 100 ## check the value
         q_ = torch.concat((q1, q), dim=-1) # (stage, bs, c, 512+512)
+        q_ =  q_.permute(1, 2, 0, 3).reshape(bs, c, -1) # (stage, bs, c, (512+512)*stage)
         return q_
     
     def get_qs_save(self, q, cls):
