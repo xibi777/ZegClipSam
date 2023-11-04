@@ -290,6 +290,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                 cls_token = inputs[0][1] #(bs, dim)
             elif self.cls_type == 'ave':
                 cls_token = patch_token[0].mean(-1).mean(-1) #(bs, dim)
+            elif self.cls_type == 'weighted':
+                cls_token = patch_token[0] # (bs, dim, 32, 32)
                 
         else:
             ## combine the patch_token from different layers
@@ -474,12 +476,28 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
     def get_qs(self, q, cls):
         # q_ = [q.cls, q]
-        # q: (base, 512) cls: (bs, 512)
-        C, dim = q.shape
-        bs, _ = cls.shape
-        q = q.expand(bs, -1, -1)
-        q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 ## check the value
-        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+        # q: (base_class, 512) cls: (bs, 512)
+        if self.cls_type == 'weighted': # cls is the patch_embeddings
+            bs = cls.shape[0]
+            cls = cls.flatten(-2, -1) # (bs, 512, 32*32)
+            q1 = torch.einsum("bdn,cd->bcn", cls, q) ## check the value
+            
+            cls_norm = cls / torch.norm(cls, dim=1, keepdim=True) # 方差归一化，即除以各自的模
+            q_norm = q / torch.norm(q, dim=-1, keepdim=True)
+            similarity = torch.bmm(q_norm.expand(bs, -1, -1), cls_norm).sigmoid()## (bs, c, n)
+            similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
+            q1 = q1 * similarity
+            
+            q = q.expand(bs, -1, -1)
+            q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+            
+        else:   
+            C, dim = q.shape
+            bs, _ = cls.shape
+            q = q.expand(bs, -1, -1)
+            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 ## check the value
+            q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+            
         return q_
 
     def get_multi_qs(self, q, cls):
@@ -1608,8 +1626,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
                 cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
             elif self.cls_type == 'ave':
-                cls_token = torch.stack([patch_token[0][0][i_stage][0].mean(-1).mean(-1) for i_stage in range(self.use_stages-1)])
-                cls_token = torch.concat([cls_token, patch_token[0][1].mean(-1).mean(-1).unsqueeze(0)]) #(use_stage, bs, dim)
+                cls_token = patch_token.mean(-1).mean(-1) #(use_stage, bs, dim)
             
             ## proj patch
             patch_token = self.patch_proj(patch_token.permute(1, 0, 2, 3, 4).flatten(1, 2).permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
