@@ -1389,7 +1389,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference_binary(out["pred_masks"], 0.2) ## Change the balance factor： 0.0 is the best
+            out["pred"] = self.semantic_inference_binary(out["pred_masks"], 0.0) ## Change the balance factor： 0.0 is the best
             return out["pred"]              
         return out
 
