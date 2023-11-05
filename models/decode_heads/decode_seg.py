@@ -476,20 +476,21 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
     def get_qs(self, q, cls):
         # q_ = [q.cls, q]
-        # q: (base_class, 512) cls: (bs, 512)
-        if self.cls_type == 'weighted': # cls is the patch_embeddings
+        # q: (base_class, 768) cls: (bs, 768)
+        if self.cls_type == 'weighted': # cls is the patch_embeddings, cls (bs, 768, 32,32)
             bs = cls.shape[0]
-            cls = cls.flatten(-2, -1) # (bs, 512, 32*32)
-            q1 = torch.einsum("bdn,cd->bcn", cls, q) ## check the value
+            cls = cls.flatten(-2, -1).permute(0, 2, 1) # (bs, 768, 32*32) -> (bs, n, d)
+            # q1 = torch.einsum("bdn,cd->bcn", cls, q) ## check the value
+            q1 = torch.einsum("bnd,cd->bcnd", cls, q)
             
-            cls_norm = cls / torch.norm(cls, dim=1, keepdim=True) # 方差归一化，即除以各自的模
+            cls_norm = cls.permute(0, 2, 1) / torch.norm(cls.permute(0, 2, 1), dim=1, keepdim=True) # 方差归一化，即除以各自的模
             q_norm = q / torch.norm(q, dim=-1, keepdim=True)
             similarity = torch.bmm(q_norm.expand(bs, -1, -1), cls_norm).sigmoid()## (bs, c, n)
             similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
-            q1 = q1 * similarity
+            q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2)
             
             q = q.expand(bs, -1, -1)
-            q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+            q_ = torch.concat((q1 * 100, q), dim=-1) # (bs, 20, 768+768)
             
         else:   
             C, dim = q.shape
