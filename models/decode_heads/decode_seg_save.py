@@ -164,9 +164,10 @@ class SaveHeadSeg(BaseDecodeHead):
         if len(self.all_idx) == 21:
             max_iter = 2000 #200
         elif len(self.all_idx) == 81:
-            max_iter = 8000 #800
+            max_iter = 8 #800
            
         if self.cur_iter == max_iter:
+            print('saving protos......')
             ## save the protos
             save_protos = self.base_protos / (self.base_nums.unsqueeze(-1)) # check the value
             save_protos = save_protos.clone().cpu().numpy()

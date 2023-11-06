@@ -1,47 +1,55 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/coco2014_512x512_fully.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_20k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
 
 img_size = 512
 in_channels = 768 # 512?
-out_indices = [3, 6, 9, 10, 11]
+out_indices = [9, 10, 11]
 
-base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
+base_class = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 
+              29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 45, 46, 47, 49, 50, 51, 53, 54, 
+              55, 57, 58, 59, 61, 62, 63, 65, 66, 67, 69, 70, 71, 73, 74, 75, 77, 78, 79] # 0:background
+novel_class = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80]
+both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
              19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 
              36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
              53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 
              70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
-novel_class = []
-both_class = base_class
+
 num_classes = len(base_class)
 
-pretrained = '/media/data/ziqin/pretrained/dino_vitbase16_pretrain.pth'
+eval_supp_dir = '/media/data/ziqin/data_fss/coco2014'
+eval_supp_path = '/media/data/ziqin/data_fss/coco2014/ImageSets/FewShotSegmentation/val_supp_split_3_shot_1_seed0.txt'
+
+pretrained = '/media/data/ziqin/pretrained/B_16.pth'
 
 model = dict(
-    type='FewSegViTSave',
+    type='FewSegViT',
     pretrained=pretrained, 
     context_length=77,
     backbone=dict(
-        type='BaseVisionTransformer',
-        img_size = 512,
-        patch_size=16,
-        embed_dim=768,
-        depth=12,
-        num_heads=12,
-        mlp_ratio=4,
-        qkv_bias=True,
+        type='PromptImageNetViT',
+        ## ADDED
         out_indices=out_indices, 
-        pretrained=pretrained,
+        pretrained=pretrained, 
+        #setting of vpt
+        num_tokens=50,
+        prompt_dim=768,
+        total_d_layer=11,
         style='pytorch'),
     decode_head=dict(
-        type='SaveHeadSeg',
+        type='MultiATMSingleHeadSeg',
         img_size=img_size,
         in_channels=in_channels,
         seen_idx=base_class,
         all_idx=both_class,
         channels=in_channels,
         num_classes=num_classes,
+        num_layers=3,
+        num_heads=8,
+        use_proj=False,
+        cls_type='weighted',
         use_stages=len(out_indices),
         embed_dims=in_channels,
         loss_decode=dict(
@@ -54,11 +62,12 @@ model = dict(
     base_class = base_class,
     novel_class = novel_class,
     both_class = both_class,
-    split = 0,
+    split = 3,
     shot = 1,
-    supp_dir = None,
-    supp_path = None,
+    supp_dir = eval_supp_dir,
+    supp_path = eval_supp_path,
     ft_backbone = False,
+    exclude_key='prompt',
 )
 
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
@@ -74,6 +83,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=10.),
                                         }))
 
-data = dict(samples_per_gpu=6,
-            workers_per_gpu=6,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 
