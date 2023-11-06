@@ -16,7 +16,7 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_all_prompt_weighted/vit_b_16_split_0_512x512_20k_12_10.py",
+                "configs/voc12_vit_all_prompt_multi_weighted/vit_b_16_split_0_512x512_20k_12_10.py",
                 "--work-dir", "./work_dirs/voc_split_0",
             ]
         },
@@ -300,7 +300,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "configs/coco2014_vit_all_plus/vit_b_16_split_0_512x512_40k_12_50.py",
+                "configs/coco2014_vit_all_prompt_multi_ave/vit_b_16_split_0_512x512_40k_12_50.py",
                 "--work-dir", "./work_dirs/coco/",
             ]
         },

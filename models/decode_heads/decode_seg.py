@@ -483,8 +483,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # q1 = torch.einsum("bdn,cd->bcn", cls, q) ## check the value
             q1 = torch.einsum("bnd,cd->bcnd", cls, q)
             
-            cls_norm = cls.permute(0, 2, 1) / torch.norm(cls.permute(0, 2, 1), dim=1, keepdim=True) # 方差归一化，即除以各自的模
-            q_norm = q / torch.norm(q, dim=-1, keepdim=True)
+            cls_norm = cls.permute(0, 2, 1) / torch.norm(cls.permute(0, 2, 1), dim=1, keepdim=True) # (bs, d, n)
+            q_norm = q / torch.norm(q, dim=-1, keepdim=True) #(c, d)
             similarity = torch.bmm(q_norm.expand(bs, -1, -1), cls_norm).sigmoid()## (bs, c, n)
             similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
             q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2)
@@ -1618,6 +1618,8 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 cls_token = inputs[0][1] #(bs, dim)
             elif self.cls_type == 'ave':
                 cls_token = patch_token[0].mean(-1).mean(-1) #(bs, dim)
+            elif self.cls_type == 'weighted':
+                cls_token = patch_token[0] # (bs, dim, 32, 32)
                 
         else:
             ## combine the patch_token from different layers
@@ -1628,6 +1630,8 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
             elif self.cls_type == 'ave':
                 cls_token = patch_token.mean(-1).mean(-1) #(use_stage, bs, dim)
+            elif self.cls_type == 'weighted':
+                cls_token = patch_token # (use_stage, bs, dim, 32, 32)
             
             ## proj patch
             patch_token = self.patch_proj(patch_token.permute(1, 0, 2, 3, 4).flatten(1, 2).permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
@@ -1753,13 +1757,30 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
 
     def get_multi_qs(self, q, cls):
         # q_ = [q.cls, q]
-        # q: (base, stage, 512) cls: (stage, bs, 512)
-        c, s, dim = q.shape
-        s, bs, _ = cls.shape
-        q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) # (s, bs, c, dim)
-        q1 = torch.einsum("sbd,sbcd->sbcd", cls, q) * 100 ## check the value
-        q_ = torch.concat((q1, q), dim=-1) # (stage, bs, c, 512+512)
-        q_ =  q_.permute(1, 2, 0, 3).reshape(bs, c, -1) # (stage, bs, c, (512+512)*stage)
+        if self.cls_type == 'weighted': # cls is the patch_embeddings, cls (use_stage, bs, 768, 32,32)
+            # q: (c, stage, 512) cls: (stage, bs, 768, 32,32)
+            c, _, dim = q.shape
+            cls = cls.flatten(-2, -1).permute(0, 1, 3, 2) # (use_stage, bs, 768, 32*32) -> (use_stage, bs, n, d)
+            s, bs, n, _ = cls.shape
+            q1 = torch.einsum("sbnd,scd->sbcnd", cls, q.permute(1, 0, 2)) #(s, bs, c, n, d)
+            cls_norm = cls.permute(0, 1, 3, 2) / torch.norm(cls.permute(0, 1, 3, 2), dim=2, keepdim=True) # (s, bs, d, n)
+            q_norm = q / torch.norm(q, dim=-1, keepdim=True) #(c, s, d)
+            q_norm = q_norm.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) #(s, b, c, d)
+            similarity = torch.bmm(q_norm.reshape(s*bs, c, dim), cls_norm.reshape(s*bs, dim, n)).sigmoid().reshape(s, bs, c, n)## (s, bs, c, n)
+            similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
+            q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2) # (s, bs, c, d)
+            
+            q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3)
+            q_ = torch.concat((q1, q), dim=-1)# (stage, bs, c, 512+512)
+            q_ =  q_.permute(1, 2, 0, 3).reshape(bs, c, -1)# (stage, bs, c, (512+512)*stage)
+            
+        else:   
+            c, s, dim = q.shape
+            s, bs, _ = cls.shape
+            q = q.expand(bs, -1, -1, -1).permute(2, 0, 1, 3) # (s, bs, c, dim)
+            q1 = torch.einsum("sbd,sbcd->sbcd", cls, q) * 100 ## check the value
+            q_ = torch.concat((q1, q), dim=-1) # (stage, bs, c, 512+512)
+            q_ =  q_.permute(1, 2, 0, 3).reshape(bs, c, -1) # (stage, bs, c, (512+512)*stage)
         return q_
     
     def get_qs_save(self, q, cls):

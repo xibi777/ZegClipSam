@@ -710,32 +710,46 @@ class BaseVisionTransformer(nn.Module):
         H = W = int(np.sqrt((x.shape[1]-1)))
 
         ## get original proto from dino
-        x_p = x.clone().detach()
-        with torch.no_grad():
-            for blk in self.blocks:
-                x_p = blk(x_p)
-            x_p = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
+        # x_p = x.clone().detach()
+        # with torch.no_grad():
+        #     for blk in self.blocks:
+        #         x_p = blk(x_p)
+        #     x_p = self.norm(x_p)[:, -(H*W):].reshape(B, H, W, -1).permute(0, 3, 1, 2).detach()
 
         features = []
         outs = []
+        x = x.permute(1, 0, 2)  # NLD -> LND (1+prompt+n_patches, B, D)
+
         for i, blk in enumerate(self.blocks):
-            x = blk(x)
+            x = blk(x.permute(1, 0, 2)).permute(1, 0, 2) #(bs, n, dim)
             if len(self.out_indices) > 1: # return the middle features of visual CLIP
                 if i in self.out_indices:
-                    xp = x.permute(1, 0, 2)[:, 1:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    # xp = x.permute(1, 0, 2)[:, 1:, :].permute(0, 2, 1).reshape(B, -1, H, W)
+                    # xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
+                    # features.append(xp.contiguous())
+                    
+                    ## norm: layernorm + l2 norm??
+                    xp = x.permute(1,0,2)
+                    xp = self.norm(xp)
+                    xp = xp[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2)
                     xp = xp / xp.norm(dim=1, keepdim=True) ##ADDED_Norm
                     features.append(xp.contiguous())
-
+        
+        x = x.permute(1,0,2)
         x = self.norm(x) #LayerNorm: (bs, 1025, 768)
+        
         global_embedding = x[:, 0]
         visual_embedding = x[:, 1:].reshape(B, H, W, -1).permute(0, 3, 1, 2) # B C H W
         # features.append([global_embedding, visual_embedding])
         if len(self.out_indices) == 1: # return the final features after proj
+            visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
             features.append(visual_embedding) #len(features) = 1, [B, 512, 32, 32]
 
+        global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
+        
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(x_p) 
+        # outs.append(x_p) 
         return outs
 
     def get_last_selfattention(self, x):

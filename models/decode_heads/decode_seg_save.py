@@ -149,7 +149,7 @@ class SaveHeadSeg(BaseDecodeHead):
 
 
     def forward(self, inputs, gt_semantic_seg=None, novel_clip_feats=None, novel_labels=None):
-        patch_tokens = inputs[-1] #(bs, 768, 32, 32) patch embeddings from the last layer
+        patch_tokens = inputs[0][-1] #(bs, 768, 32, 32) patch embeddings from the last layer
         
         bs, dim, p, _ = patch_tokens.size()
         patch_tokens = patch_tokens.reshape(bs, dim , -1)
@@ -162,18 +162,18 @@ class SaveHeadSeg(BaseDecodeHead):
             q = self.q_proj(self.base_protos.expand(bs, -1, -1))
         
         if len(self.all_idx) == 21:
-            max_iter = 200
+            max_iter = 2000 #200
         elif len(self.all_idx) == 81:
-            max_iter = 800
+            max_iter = 8000 #800
            
         if self.cur_iter == max_iter:
             ## save the protos
             save_protos = self.base_protos / (self.base_nums.unsqueeze(-1)) # check the value
             save_protos = save_protos.clone().cpu().numpy()
             if len(self.all_idx) == 21:
-                save_path = 'configs/_base_/datasets/inti_protos/voc_protos.npy'
+                save_path = '/media/data/ziqin/data/inti_protos/voc_protos_dino.npy'
             elif len(self.all_idx) == 81:
-                save_path = 'configs/_base_/datasets/inti_protos/coco_protos.npy'
+                save_path = '/media/data/ziqin/data/inti_protos/coco_protos_dino.npy'
             np.save(save_path, save_protos)
         
         # get prediction and loss

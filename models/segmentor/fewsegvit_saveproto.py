@@ -202,7 +202,7 @@ class FewSegViTSave(FewEncoderDecoder):
             gt_semantic_seg = torch.Tensor(self.visibility_seen_mask)
             
         visual_feat = self.extract_feat(img) # (bs, 1025, 768)
-        qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_protos, visual_feat, gt_semantic_seg.squeeze()) # V1: from dino+vpt better
+        qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_protos, visual_feat[0], gt_semantic_seg.squeeze()) # V1: from dino+vpt better
 
         losses = dict()
         loss_decode = self._decode_head_forward_train(visual_feat, img_metas, gt_semantic_seg, qs_epoch)
