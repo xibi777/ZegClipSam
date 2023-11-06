@@ -15,7 +15,7 @@ num_classes = len(base_class)
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
 eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_2_shot_5_seed2.txt'
 
-pretrained = '/media/data/ziqin/pretrained/B_16.pth'
+pretrained = '/media/data/ziqin/pretrained/dino_vitbase16_pretrain.pth'
 
 model = dict(
     type='FewSegViT',
@@ -49,6 +49,7 @@ model = dict(
         num_heads=8,
         use_proj=False,
         cls_type='cls',
+        backbone_type='dino',
         use_stages=len(out_indices),
         embed_dims=in_channels,
         loss_decode=dict(

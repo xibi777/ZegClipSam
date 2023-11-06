@@ -160,6 +160,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             cls_type='cls',
             use_proj=True,
             crop_train=False,
+            backbone_type='vit', #defualt
             **kwargs,
     ):
         super(ATMSingleHeadSeg, self).__init__(
@@ -170,6 +171,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
+        self.backbone_type = backbone_type
 
         nhead = num_heads
         self.dim = embed_dims
@@ -225,10 +227,18 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             self.q_proj = q_proj
         
     def init_proto(self):
-        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
-            path = '/media/data/ziqin/data/init_protos/voc_protos.npy'
-        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
-            path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
+        if self.backbone_type == 'dino': ## dino
+            print('Initialized prototypes with DINO model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+        elif self.backbone_type == 'vit': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
         
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
@@ -613,6 +623,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             use_stages=1,
             use_proj=True,
             crop_train=False,
+            backbone_type='vit', #defualt
             **kwargs,
     ):
         super(ATMSingleHeadSegWORD, self).__init__(
@@ -623,6 +634,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
+        self.backbone_type = backbone_type
 
         nhead = num_heads
         self.dim = embed_dims
@@ -676,10 +688,18 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             self.q_proj = q_proj
         
     def init_proto(self):
-        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
-            path = '/media/data/ziqin/data/init_protos/voc_protos.npy'
-        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
-            path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
+        if self.backbone_type == 'dino': ## dino
+            print('Initialized prototypes with DINO model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+        elif self.backbone_type == 'vit': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
         
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
@@ -1156,6 +1176,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             use_stages=1,
             use_proj=True,
             crop_train=False,
+            backbone_type='vit', #defualt
             **kwargs,
     ):
         super(BinaryATMSingleHeadSeg, self).__init__(
@@ -1166,6 +1187,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
+        self.backbone_type = backbone_type
 
         nhead = num_heads
         self.dim = embed_dims
@@ -1499,6 +1521,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             cls_type='cls',
             use_proj=True,
             crop_train=False,
+            backbone_type='vit', #defualt
             **kwargs,
     ):
         super(MultiATMSingleHeadSeg, self).__init__(
@@ -1509,6 +1532,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
+        self.backbone_type = backbone_type
 
         nhead = num_heads
         self.dim = embed_dims
@@ -1560,10 +1584,18 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             self.patch_proj = nn.Linear(in_channels * use_stages, embed_dims)
         
     def init_proto(self):
-        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
-            path = '/media/data/ziqin/data/init_protos/voc_protos.npy'
-        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
-            path = '/media/data/ziqin/data/init_protos/coco_protos.npy'
+        if self.backbone_type == 'dino': ## dino
+            print('Initialized prototypes with DINO model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+        elif self.backbone_type == 'vit': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
         
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11

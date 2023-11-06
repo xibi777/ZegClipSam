@@ -171,9 +171,9 @@ class SaveHeadSeg(BaseDecodeHead):
             save_protos = self.base_protos / (self.base_nums.unsqueeze(-1)) # check the value
             save_protos = save_protos.clone().cpu().numpy()
             if len(self.all_idx) == 21:
-                save_path = '/media/data/ziqin/data/inti_protos/voc_protos_dino.npy'
+                save_path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
             elif len(self.all_idx) == 81:
-                save_path = '/media/data/ziqin/data/inti_protos/coco_protos_dino.npy'
+                save_path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
             np.save(save_path, save_protos)
         
         # get prediction and loss
