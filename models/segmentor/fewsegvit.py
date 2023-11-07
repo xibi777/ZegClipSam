@@ -307,6 +307,7 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
+
         return all_novel_queries ##？？10 is the best? but why
 
     def extract_aug_novel_proto(self, dir, path, way, shot):

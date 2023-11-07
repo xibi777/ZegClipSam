@@ -46,8 +46,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_VPT_NEL_WORD/vit_b_16_split_0_512x512_20k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_word/vit_b_16_split_0/iter_10000.pth",
+                "configs/voc12_vit_all_prompt_multi_weighted/vit_b_16_split_0_512x512_20k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_multi_weighted/vit_b_16_split_0/iter_10000.pth",
                 "--eval", "mIoU",
             ]
         },
