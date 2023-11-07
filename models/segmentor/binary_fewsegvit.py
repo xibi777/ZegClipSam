@@ -303,6 +303,7 @@ class BinaryFewSegViT(FewEncoderDecoder):
                 else:
                     assert AttributeError('Do not support this dataset')
 
+                image_path = '/media/data/ziqin/code/FewSegViT/teaser.png'
                 image = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
                 image = np.float32(image) # (0-255)

@@ -426,6 +426,8 @@ class MyResNet(nn.Module):
 
         visual_embedding = x
         global_embedding = self.avgpool(visual_embedding).squeeze()
+        if global_embedding.shape[0] == 2048:
+            global_embedding = global_embedding.unsqueeze(0)
         
         visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
