@@ -157,6 +157,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             num_layers=3,
             num_heads=8,
             use_stages=1,
+            out_indices=[11],
             cls_type='cls',
             use_proj=True,
             crop_train=False,
@@ -168,6 +169,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
 
         self.image_size = img_size
         self.use_stages = use_stages
+        self.out_indices = out_indices
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
@@ -243,7 +245,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
         else:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+            assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
+            # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
             
         self.base_qs.data = init_protos
             
@@ -626,6 +629,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             num_layers=3,
             num_heads=8,
             use_stages=1,
+            out_indices=[11],
             use_proj=True,
             crop_train=False,
             backbone_type='vit', #defualt
@@ -636,6 +640,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
 
         self.image_size = img_size
         self.use_stages = use_stages
+        self.out_indices = out_indices
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
@@ -708,8 +713,9 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
         
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
-        else:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+        else:    
+            assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
+            # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
             
         self.base_qs.data = init_protos
 
@@ -899,6 +905,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
             num_layers=3,
             num_heads=8,
             use_stages=1,
+            out_indices=[11],
             use_proj=True,
             crop_train=False,
             backbone_type='vit', #defualt
@@ -909,6 +916,7 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
 
         self.image_size = img_size
         self.use_stages = use_stages
+        self.out_indices = out_indices
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
@@ -1242,6 +1250,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             num_layers=3,
             num_heads=8,
             use_stages=1,
+            out_indices=[11],
             cls_type='cls',
             use_proj=True,
             crop_train=False,
@@ -1253,6 +1262,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
 
         self.image_size = img_size
         self.use_stages = use_stages
+        self.out_indices = out_indices
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
@@ -1322,9 +1332,11 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
         
         if self.use_stages == 1:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, self.out_indices][self.seen_idx] ##for 11
         else:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+            save_init_proto_idx = np.array([3, 6, 9, 10, 11])
+            indices = np.where(np.isin(save_init_proto_idx, np.array(self.out_indices)))[0]
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, indices][self.seen_idx].squeeze() ##for 11
             
         self.base_qs.data = init_protos
             

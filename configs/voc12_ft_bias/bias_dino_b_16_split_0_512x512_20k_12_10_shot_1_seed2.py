@@ -86,6 +86,7 @@ model = dict(
         num_heads=8,
         use_proj=False,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=in_channels,
         tune='bias', # Tune whole decoder; Tune k/v/f; Tune bias
         loss_decode=dict(

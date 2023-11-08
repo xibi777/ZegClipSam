@@ -45,6 +45,7 @@ model = dict(
         use_proj=False,
         cls_type='weighted',
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=in_channels,
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 

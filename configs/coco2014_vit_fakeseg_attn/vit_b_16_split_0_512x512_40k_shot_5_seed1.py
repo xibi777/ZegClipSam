@@ -49,6 +49,7 @@ model = dict(
         num_heads=1,
         use_proj=False,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=in_channels,
         rd_type='qclsq',
         decode_type='attn',

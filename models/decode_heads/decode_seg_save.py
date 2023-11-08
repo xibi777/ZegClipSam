@@ -102,6 +102,7 @@ class SaveHeadSeg(BaseDecodeHead):
             num_layers=0,
             num_heads=0,
             use_stages=1,
+            out_indices=[11],
             withRD=False,
             use_proj=True,
             crop_train=False,
@@ -114,6 +115,7 @@ class SaveHeadSeg(BaseDecodeHead):
 
         self.image_size = img_size
         self.use_stages = use_stages
+        self.out_indices = out_indices
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx

@@ -36,6 +36,7 @@ model = dict(
         num_heads=1,
         use_proj=False,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=in_channels,
         rd_type='qclsq',
         decode_type='mlp',
@@ -82,6 +83,6 @@ optimizer = dict(type='AdamW', lr=0.0002, weight_decay=0.01,
 #                                         'head': dict(lr_mult=1.),
 #                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 

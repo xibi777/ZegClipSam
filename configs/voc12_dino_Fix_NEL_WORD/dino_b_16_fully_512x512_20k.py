@@ -42,6 +42,7 @@ model = dict(
         num_heads=8,
         use_proj=False,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
             mask_weight=20.0,

@@ -39,6 +39,7 @@ model = dict(
         num_heads=8,
         use_proj=True,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=channels,
         loss_decode=dict(
             type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
@@ -83,6 +84,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
 #                                         'head': dict(lr_mult=1.),
 #                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 

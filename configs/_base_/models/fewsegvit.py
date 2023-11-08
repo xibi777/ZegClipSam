@@ -22,6 +22,7 @@ model = dict(
         num_layers=3,
         num_heads=12,
         use_stages=len(out_indices),
+        out_indices=out_indices,
         embed_dims=in_channels // 2,
         loss_decode=dict(
             type='SegPlussLoss',  num_classes=150, dec_layers=len(out_indices), loss_weight=1.0),
