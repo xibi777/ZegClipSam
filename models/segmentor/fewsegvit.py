@@ -293,7 +293,7 @@ class FewSegViT(FewEncoderDecoder):
             
             novel_support_feat = self.extract_feat(image)[0]
             for i_stage in range(self.decode_head.use_stages):
-                if i_stage < (self.decode_head.use_stages-1):
+                if i_stage < (len(novel_support_feat)-1):
                     patch_token_cls_i = novel_support_feat[i_stage][1].clone().detach()
                 else:
                     patch_token_cls_i = novel_support_feat[i_stage].clone().detach()
@@ -423,7 +423,7 @@ class FewSegViT(FewEncoderDecoder):
         # resnet50: patch (bs, 2048. 512, 512)
         qs_epoch = torch.zeros_like(qs) # [15, dim] resnet:[15,512] (2048-512) with proj
         num_base = torch.zeros(qs.shape[0]).to(qs_epoch.device)  #(15)
-        use_stages = len(patch_features)
+        use_stages = self.decode_head.use_stages
 
         n = 0 #bs
         for targets_per_image in targets:
@@ -436,7 +436,7 @@ class FewSegViT(FewEncoderDecoder):
                     binary_mask = torch.zeros_like(targets[0])
                     binary_mask[targets_per_image == cls] = 1
                     for i_stage in range(use_stages):
-                        if i_stage != (use_stages-1):
+                        if i_stage < (len(patch_features)-1):
                             patch_token_cls_i = patch_features[i_stage][1][n].unsqueeze(0).clone().detach()
                         else:
                             patch_token_cls_i = patch_features[i_stage][n].unsqueeze(0).clone().detach()
