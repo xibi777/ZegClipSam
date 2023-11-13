@@ -50,5 +50,8 @@
 # bash dist_train_012.sh configs/voc12_vit_all_plus/vit_b_16_split_3_512x512_20k_12_10.py /media/data/ziqin/work_dirs_fss/voc_plus/vit_b_16_split_3
 # bash dist_train_012.sh configs/voc12_vit_all_plus/vit_b_16_split_3_512x512_20k_12_10_onlyraw.py /media/data/ziqin/work_dirs_fss/voc_plus_onlyraw/vit_b_16_split_3
 
-bash dist_train_012.sh configs/coco_voc_save/voc_dino.py /media/data/ziqin/work_dirs_fss/save_proto/voc_dino
-bash dist_train_012.sh configs/coco_voc_save/coco_dino.py /media/data/ziqin/work_dirs_fss/save_proto/coco_dino
+# bash dist_train_012.sh configs/coco_voc_save/voc_dino.py /media/data/ziqin/work_dirs_fss/save_proto/voc_dino
+# bash dist_train_012.sh configs/coco_voc_save/coco_dino.py /media/data/ziqin/work_dirs_fss/save_proto/coco_dino
+
+bash dist_train_0.sh configs/coco_voc_save/voc_rn50.py /media/data/ziqin/work_dirs_fss/save_proto/voc_rn50
+bash dist_train_0.sh configs/coco_voc_save/coco_rn50.py /media/data/ziqin/work_dirs_fss/save_proto/coco_rn50

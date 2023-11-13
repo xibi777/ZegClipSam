@@ -75,8 +75,6 @@ class BinaryPascalVOCDataset20(CustomDataset):
 
             # accuracy = sum(intersection_meter.val) / (sum(target_meter.val) + 1e-10)
             mIoU += intersection/union
-
-        print('Total mIoU of 1000 pair-wise novel classes:', mIoU/total)
         return mIoU/total
 
     def iou_mean(self, preds, targets, n_classes = 1):
@@ -161,11 +159,14 @@ class BinaryPascalVOCDataset20(CustomDataset):
             binary_label[label == n_cls] = 1
             
             ## different settings
+            
             # If set the other class into bg and remain ignore as 255 as GFS-Seg setting
             binary_label[label==255] = 255 
+            
             # If set the other class into ingore 255 and remain bg as 0
             # binary_label[label!=n_cls] = 255
             # binary_label[label==0] = 0
+            
             # If set the other pixels all into bg: pass
             
             binary_labels.append(binary_label)

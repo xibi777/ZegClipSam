@@ -292,6 +292,7 @@ class FewSegViT(FewEncoderDecoder):
             assert binary_label.sum() != 0
             
             novel_support_feat = self.extract_feat(image)[0]
+            
             for i_stage in range(self.decode_head.use_stages):
                 if i_stage < (len(novel_support_feat)-1):
                     patch_token_cls_i = novel_support_feat[i_stage][1].clone().detach()

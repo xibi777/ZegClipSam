@@ -164,9 +164,9 @@ class SaveHeadSeg(BaseDecodeHead):
             q = self.q_proj(self.base_protos.expand(bs, -1, -1))
         
         if len(self.all_idx) == 21:
-            max_iter = 2000 #200
+            max_iter = 2000 #2000*8 1w+
         elif len(self.all_idx) == 81:
-            max_iter = 8 #800
+            max_iter = 15000 #15000*6 8w+
            
         if self.cur_iter == max_iter:
             print('saving protos......')
@@ -174,9 +174,9 @@ class SaveHeadSeg(BaseDecodeHead):
             save_protos = self.base_protos / (self.base_nums.unsqueeze(-1)) # check the value
             save_protos = save_protos.clone().cpu().numpy()
             if len(self.all_idx) == 21:
-                save_path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+                save_path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
             elif len(self.all_idx) == 81:
-                save_path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+                save_path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
             np.save(save_path, save_protos)
         
         # get prediction and loss

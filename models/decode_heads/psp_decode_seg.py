@@ -76,6 +76,8 @@ class PSPHeadSeg(BaseDecodeHead):
             num_layers=3,
             num_heads=8,
             use_stages=1,
+            out_indices=[11],
+            cls_type='ave',
             bins=(1, 2, 3, 6),
             dropout=0.1,
             zoom_factor=8,
@@ -91,6 +93,8 @@ class PSPHeadSeg(BaseDecodeHead):
         self.crop_train = crop_train
         self.seen_idx = seen_idx
         self.all_idx = all_idx
+        self.cls_type = cls_type
+        self.out_indices = out_indices
 
         nhead = num_heads
         self.dim = embed_dims
@@ -148,6 +152,19 @@ class PSPHeadSeg(BaseDecodeHead):
         # self.q_proj = nn.Linear(embed_dims * 2 + 12, embed_dims) ## MULTIHEAD
         ## ADDED FC for prototype
         # self.proto_proj = nn.Linear(embed_dims, embed_dims)
+    
+    def init_proto(self):
+        print('Initialized prototypes with ResNet50 model')
+        if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+            path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
+        elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+            path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
+        if self.use_stages == 1:
+            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+        else:
+            assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
+            # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+        self.base_qs.data = init_protos
 
     def init_weights(self):
         for n, m in self.named_modules():
@@ -190,13 +207,17 @@ class PSPHeadSeg(BaseDecodeHead):
         return cls_token
 
     def forward(self, inputs, qs_epoch=None, novel_queries=None):
+        if inputs[0][1].shape[-1] == 2048: # only for resnet, not for vit
+            if self.cur_iter == 0:
+                self.init_proto()
+                
         patch_token = inputs[0][0]
-        # cls_token = inputs[0][1] 
+        if self.cls_type == 'ave':
+            cls_token = patch_token[0].mean(-1).mean(-1) #(bs, dim)
+        elif self.cls_type == 'weighted':
+            cls_token = patch_token[0] # (bs, dim, 32, 32)
 
-        if self.training:
-            cls_token = inputs[0][1]
-            # cls_token = self.get_cls_token(patch_token[0], self.base_qs.clone())
-        else:
+        if not self.training:
             # REGISTER NOVEL: concat the novel queries in the right position
             both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
             if novel_queries is not None:
@@ -206,49 +227,13 @@ class PSPHeadSeg(BaseDecodeHead):
             else:
                 both_proto[:] = self.base_qs.clone()
             cls_token = inputs[0][1]
-            # cls_token = self.get_cls_token(patch_token[0], both_proto.clone())
-
-        ### Test the performance of using pseudo labels
-        # if not self.training:
-        #     pred = F.cosine_similarity(both_proto.squeeze().unsqueeze(1), inputs[0][-1].squeeze().reshape(768, 32*32).permute(1,0).unsqueeze(0), dim=-1).reshape(both_proto.squeeze().shape[0], 32, 32).sigmoid()
-        #     pred = F.interpolate(pred.unsqueeze(0), size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)    
-        # return pred
 
         x = patch_token[0]
 
         if not self.training:
-            ## ADDED:
-            # both_proto = self.proto_proj(both_proto)
-            # q = both_proto.repeat(bs, 1, 1).transpose(0, 1) # V1 or V2
-            
-            #### how about use Learnable bg??
-            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            # both_proto = torch.concat((bg_qs, both_proto[1:]),dim=0)
-    
-            q = self.q_proj(self.get_qs(both_proto, cls_token)).transpose(0, 1)
-            # q = self.q_proj(self.get_qs_save(both_proto, cls_token)).transpose(0, 1)
-            # q = self.q_proj(self.get_qs_multihead(both_proto, cls_token)).transpose(0, 1) # V3
+            q = self.q_proj(self.get_qs(both_proto, cls_token)) #.transpose(0, 1)
 
         else:
-            ## V0: learnable q  
-            # q = self.q.weight.repeat(bs, 1, 1).transpose(0, 1) # for base classes while training
-            # print('q:', q.sum())
-
-            ## V1/V2: update base_qs by the protopyes from base images
-            # q = self.base_qs.repeat(bs, 1, 1).transpose(0, 1)
-            # self.cur_iter += 1
-            # mom = self.update_m()
-            # self.base_qs = (mom * self.base_qs.to(qs_epoch.device) + (1-mom) * qs_epoch)
-
-            ## V3: q is generate by combine self.base_qs and cls token and use updata base_qs by the protopyes from base images
-            # base_qs = self.base_qs
-            # base_qs = self.proto_proj(self.base_qs) #ADDED
-            
-            #### how about use Learnable bg??
-            # bg_qs = self.bg_qs / self.bg_qs.norm(dim=1, keepdim=True)
-            # base_qs_epoch = torch.concat((bg_qs, self.base_qs[1:]),dim=0)
-            # q = self.q_proj(self.get_qs(base_qs_epoch, cls_token)).transpose(0, 1)
-            
             #### the momentum updated bg !!!!!!!! ()
             q = self.q_proj(self.get_qs(self.base_qs, cls_token)) #(bs, c, 512)
             ## update self.base_qs
@@ -295,12 +280,33 @@ class PSPHeadSeg(BaseDecodeHead):
 
     def get_qs(self, q, cls):
         # q_ = [q.cls, q]
-        # q: (base, 512) cls: (bs, 512)
-        C, dim = q.shape
-        bs, _ = cls.shape
-        q = q.expand(bs, -1, -1)
-        q1 = torch.einsum("bd,bcd->bcd", cls, q)
-        q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
+        # q: (base_class, 768) cls: (bs, 768)
+        if self.cls_type == 'weighted': # cls is the patch_embeddings, cls (bs, 768, 32,32)
+            bs = cls.shape[0]
+            cls = cls.flatten(-2, -1).permute(0, 2, 1) # (bs, 768, 32*32) -> (bs, n, d)
+            # q1 = torch.einsum("bdn,cd->bcn", cls, q) ## check the value
+            q1 = torch.einsum("bnd,cd->bcnd", cls, q)
+            
+            cls_norm = cls.permute(0, 2, 1) / torch.norm(cls.permute(0, 2, 1), dim=1, keepdim=True) # (bs, d, n)
+            q_norm = q / torch.norm(q, dim=-1, keepdim=True) #(c, d)
+            
+            ## Version1: sigmoid
+            # similarity = torch.bmm(q_norm.expand(bs, -1, -1), cls_norm).sigmoid()## (bs, c, n)
+            # similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
+            ## Version2: softmax
+            similarity = (torch.bmm(q_norm.expand(bs, -1, -1), cls_norm)/0.1).softmax(-1)
+            
+            q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2)
+            
+            q = q.expand(bs, -1, -1)
+            q_ = torch.concat((q1 * 100, q), dim=-1) # (bs, 20, 768+768)
+            
+        else:   
+            C, dim = q.shape
+            bs, _ = cls.shape
+            q = q.expand(bs, -1, -1)
+            q1 = torch.einsum("bd,bcd->bcd", cls, q) * 100 ## check the value
+            q_ = torch.concat((q1, q), dim=-1) # (bs, 20, 512+512)
         return q_
 
     def get_qs_save(self, q, cls):

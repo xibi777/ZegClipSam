@@ -20,21 +20,7 @@
                 "--work-dir", "./work_dirs/voc_split_0",
             ]
         },
-        {
-            "name": "train_voc_resnet",
-            "type": "python",
-            "request": "launch",
-            "program": "./train.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "env":{
-                "CUDA_VISIBLE_DEVICES": "1,3"
-            },
-            "args": [
-                "configs/voc12_resnet50_fix_psp/resnet50_split_0_512x512_20k.py",
-                "--work-dir", "./work_dirs/voc_rn",
-            ]
-        },
+
         {
             "name": "test_voc",
             "type": "python",
@@ -46,8 +32,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_all_prompt_multi_weighted/vit_b_16_split_0_512x512_20k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_multi_weighted_softmax/vit_b_16_split_0/iter_10000.pth",
+                "configs/voc12_vit_single_weighted_binary/vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/iter_40000.pth",
                 "--eval", "mIoU",
             ]
         },
@@ -61,11 +47,11 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "configs/voc12_vit_fsseg/vit_b_16_split_0_512x512_20k_12_10_shot_5_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc_vit_fix/fully/iter_10000.pth",
+                "configs/voc12_vit_multi_weighted_binary/vit_b_16_split_0_512x512_20k_12_10_shot_5_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_multi_weighted_softmax_0.1/vit_b_16_split_0/iter_10000.pth",
                 "/media/data/ziqin/data_fss/VOC2012/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
                 "--eval", "mIoU",
             ]
@@ -80,11 +66,11 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "2"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/coco2014_vit_fsseg/vit_b_16_split_0_512x512_20k_12_50_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/coco_vit/vit_b_16_split_0/iter_40000.pth",
+                "configs/coco2014_vit_single_weighted_binary/vit_b_16_split_0_512x512_40k_12_50_shot_1.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/iter_40000.pth",
                 "/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
                 "--eval", "mIoU",
             ]
@@ -376,10 +362,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_resnet50_fakeseg_mlp/resnet50_split_0_512x512_20k.py",
+                "configs/voc12_resnet50_fix_psp_weighted/resnet50_split_0_512x512_20k.py",
                 "--work-dir", "./work_dirs/voc_rn50",
             ]
         },    
@@ -638,24 +624,6 @@
                 "--work-dir", "./work_dirs/voc_vit",
             ]
         },
-        {
-            "name": "test_coco_binary_??",
-            "type": "python",
-            "request": "launch",
-            "program": "./test_binary.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "env":{
-                "CUDA_VISIBLE_DEVICES": "0"
-            },
-            "args": [
-                "configs/coco2014_vit_fsseg/vit_b_16_split_0_512x512_40k_12_50_shot_1.py",
-                "/media/data/ziqin/work_dirs_fss/coco_vit_all/vit_b_16_split_0/iter_40000.pth",
-                // "/media/data/ziqin/work_dirs_fss/coco_vit_binary/vit_b_16_split_0/iter_40000.pth",
-                "/media/data/ziqin/data_fss/coco2014/ImageSets/BinaryFewShotSegmentation/val_split_0.txt",
-                "--eval", "mIoU",
-            ]
-        },  
 
         {
             "name": "train_init_proto",
