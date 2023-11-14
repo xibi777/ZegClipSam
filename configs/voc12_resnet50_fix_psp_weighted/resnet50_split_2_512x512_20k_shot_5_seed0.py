@@ -42,9 +42,8 @@ model = dict(
         out_indices=[11],
         embed_dims=channels,
         loss_decode=dict(
-            type='SegLossPlus', num_classes=num_classes, dec_layers=3, 
-            mask_weight=20.0,
-            dice_weight=1.0,
+            type='CELoss', num_classes=num_classes, dec_layers=3, 
+            ce_weight=1.0,
             loss_weight=1.0),
     ),
     test_cfg=dict(mode='slide', crop_size=(img_size, img_size), stride=(426, 426)), 
