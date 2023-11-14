@@ -64,7 +64,7 @@ class BinaryPascalVOCDataset20(CustomDataset):
         mIoU = 0
         total = len(results)
         for i in range(len(results)):
-            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 1)
+            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 2)
             # intersection, union, target, new_target = intersection.cpu().numpy(), union.cpu().numpy(), targets[i].cpu().numpy(), new_target.cpu().numpy()
             # intersection_meter.update(intersection), union_meter.update(union), target_meter.update(new_target)
             # intersection_meter.update(intersection), union_meter.update(union), target_meter.update(new_target)

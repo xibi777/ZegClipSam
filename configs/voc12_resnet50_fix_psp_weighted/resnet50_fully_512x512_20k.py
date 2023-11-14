@@ -57,8 +57,8 @@ model = dict(
 
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
                 warmup='linear',
-                 warmup_iters=1500,
-                 warmup_ratio=1e-6)
+                 warmup_iters=500,
+                 warmup_ratio=1e-5)
 
 
 # optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01, 
@@ -68,11 +68,11 @@ lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,
 #                                         'head': dict(lr_mult=10.),
                                         # }))
 
-optimizer = dict(type='SGD', lr=0.0002, weight_decay=0.01, 
+optimizer = dict(type='SGD', lr=0.00025, weight_decay=0.0001, 
         paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=0.0),
                                         'norm': dict(decay_mult=0.),
                                         'ln': dict(decay_mult=0.),
-                                        'head': dict(lr_mult=10.),
+                                        'head': dict(lr_mult=1.),
                                         }))
 
 data = dict(samples_per_gpu=6,
