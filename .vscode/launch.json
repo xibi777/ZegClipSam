@@ -332,8 +332,8 @@
                 "CUDA_VISIBLE_DEVICES": "2"
             },
             "args": [
-                "configs/voc12_resnet_fix/resnet50_b_16_split_1_512x512_20k_shot_5_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc_resnet_fix/fully/iter_10000.pth",
+                "configs/voc12_resnet50_fix_psp_weighted/resnet50_split_0_512x512_20k.py",
+                "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_psp_weighted/vit_b_16_split_0/iter_20000.pth",
                 "--eval", "mIoU",
             ]
         },
@@ -362,10 +362,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/voc12_resnet50_fix_psp_weighted/resnet50_split_0_512x512_20k.py",
+                "configs/voc12_resnet50_fix_multi_weighted/resnet50_split_0_512x512_20k.py",
                 "--work-dir", "./work_dirs/voc_rn50",
             ]
         },    
@@ -518,11 +518,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/cross-dataset-dino/dino_voc_coco_split_0_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc12_dino/dino_16_fully_vpt/iter_20000.pth",
+                "configs/cross-dataset-vit-multi/vit_coco_voc_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/coco_vit_all_prompt_multi_weighted_softmax_0.1/vit_b_16_fully/iter_40000.pth",
                 "--eval", "mIoU",
             ]
         },

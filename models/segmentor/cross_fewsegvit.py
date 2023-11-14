@@ -179,12 +179,12 @@ class CrossFewSegViT(FewEncoderDecoder):
         for filename in f:
             filename = filename.strip('\n')
             # print(filename)
-            if len(self.CLASSES) == 20 or len(self.CLASSES) == 21: ## VOC
+            if len(self.CLASSES) == 21: ## VOC
                 image_path = dir + '/JPEGImages/' + str(filename) + '.jpg'
                 # print('image_path:', image_path)
                 label_path = dir + '/Annotations/' + str(filename) + '.png'
                 # print('label_path:', label_path)
-            elif len(self.CLASSES) == 80 or len(self.CLASSES) == 81: ## COCO2014
+            elif (self.CLASSES) == 81: ## COCO2014
                 image_path = dir + '/JPEGImages/train2014/' + str(filename) + '.jpg'
                 label_path = dir + '/Annotations/train_contain_crowd/' + str(filename) + '.png'
             else:
@@ -203,9 +203,10 @@ class CrossFewSegViT(FewEncoderDecoder):
             # label[label==0] = 255 ## ignore the ground truth label
             # label[label!=255] -= 1
             
-            patch_embeddings = self.extract_feat(image)[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
-            # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
-
+            # get all patch features
+            novel_support_feat = self.extract_feat(image)
+            patch_embeddings = novel_support_feat[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
+            
             # obtain the mask
             label = F.interpolate(label.unsqueeze(0).unsqueeze(0).float(), size=patch_embeddings.shape[-2:], mode='nearest').squeeze().int()
             binary_label = torch.zeros_like(label)
@@ -218,7 +219,7 @@ class CrossFewSegViT(FewEncoderDecoder):
             n += 1
         
         # norm for 1shot or 5shot
-            all_novel_queries /= shot
+        all_novel_queries /= shot
 
         return all_novel_queries
 
@@ -263,6 +264,7 @@ class CrossFewSegViT(FewEncoderDecoder):
         visual_feat = self.extract_feat(img) # (bs, 1025, 768)
         feat = []
         feat.append(visual_feat)
+        
         qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
         # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
 

@@ -72,7 +72,7 @@ class PSPHeadSeg(BaseDecodeHead):
             in_channels,
             seen_idx,
             all_idx,
-            embed_dims=768,
+            embed_dims=2048,
             num_layers=3,
             num_heads=8,
             use_stages=1,

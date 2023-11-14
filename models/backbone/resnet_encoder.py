@@ -432,16 +432,17 @@ class MyResNet(nn.Module):
         visual_embedding = visual_embedding / visual_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
         global_embedding = global_embedding / global_embedding.norm(dim=1, keepdim=True) ##ADDED_Norm
     
-        features.append(visual_embedding)
         
         # global_embedding = self.mmpool(visual_embedding).squeeze()
         if global_embedding.shape[0] == 2048:
             global_embedding = global_embedding.unsqueeze(0)
-        proto_embedding = visual_embedding ##ADDED_Norm, fake proto
+            
+        features.append(visual_embedding)
+        # proto_embedding = visual_embedding ##ADDED_Norm, fake proto
         
         outs.append(tuple(features))
         outs.append(global_embedding) 
-        outs.append(proto_embedding) 
+        # outs.append(proto_embedding) 
         return outs
 
     def init_weights(self, pretrained=None):

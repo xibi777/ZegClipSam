@@ -5,7 +5,7 @@ _base_ = [
 
 img_size = 512
 in_channels = 2048
-channels = 512
+channels = 2048
 
 base_class = [0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 novel_class = [6, 7, 8, 9, 10]
@@ -34,9 +34,9 @@ model = dict(
         all_idx=both_class,
         channels=in_channels,
         num_classes=num_classes,
-        num_layers=3,
-        num_heads=8,
-        use_proj=True,
+        num_layers=0,
+        num_heads=0,
+        use_proj=False,
         cls_type='weighted',
         use_stages=1,
         out_indices=[11],

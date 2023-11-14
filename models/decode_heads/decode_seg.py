@@ -241,6 +241,12 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
+        elif self.backbone_type == 'rn50': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
         
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
@@ -292,9 +298,9 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         return cls_token
 
     def forward(self, inputs, qs_epoch=None, novel_queries=None):
-        if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
-            if self.cur_iter == 0:
-                self.init_proto()
+        # if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
+        if self.cur_iter == 0:
+            self.init_proto()
         
         if self.use_stages == 1:
             ## only use the last layer
@@ -417,8 +423,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         # print('dc:', self.decoder[0].layers[0].linear1.weight.requires_grad)
 
         # reverse q
-        if self.use_stages > 1:
-            q_stage = torch.flip(q_stage, dims=[0]) # for 9,10,11 to 11,10,9
+        # if self.use_stages > 1:
+        #     q_stage = torch.flip(q_stage, dims=[0]) # for 9,10,11 to 11,10,9
         
         for idx, decoder_ in enumerate(self.decoder):
             if len(self.decoder) > 1:
@@ -1391,9 +1397,11 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             else:
                 both_proto = torch.zeros([len(self.all_idx), self.use_stages, self.in_channels]).to(patch_token[0].device)
             if novel_queries is not None:
-                both_proto[self.seen_idx] = self.base_qs.clone()
-                # print('Novel!:', novel_queries.sum(-1))
-                both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+                if len(self.seen_idx) != 0:
+                    both_proto[self.seen_idx] = self.base_qs.clone()
+                    both_proto[self.novel_idx] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device) ## how to test multi???
+                else:  #cross
+                    both_proto[:] = torch.from_numpy(novel_queries).to(self.base_qs.dtype).to(self.base_qs.device)
             else:
                 both_proto[:] = self.base_qs.clone()
 

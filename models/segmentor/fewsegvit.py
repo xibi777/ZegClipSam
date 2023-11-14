@@ -157,9 +157,17 @@ class FewSegViT(FewEncoderDecoder):
                 if not hasattr(self, 'novel_queries'):
                     print('\n' + '------------Registering the prototypes of novel classes-----------')
                     if self.decode_head.use_stages == 1:
-                        self.novel_queries = self.extract_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        if len(self.novel_class) == 21:
+                            ## cross coco-voc
+                            assert AttributeError ('Wrong')
+                        else:
+                            self.novel_queries = self.extract_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
                     else:
-                        self.novel_queries = self.extract_novel_multi_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        if len(self.novel_class) == 21:
+                            ## cross coco-voc
+                            self.novel_queries = self.extract_cross_novel_multi_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        else:
+                            self.novel_queries = self.extract_novel_multi_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
                     # print('------------Registering the aug prototypes of novel classes-----------')
                     # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
                     print('Done! The dimension of novel prototypes is: ', self.novel_queries.shape)
@@ -175,7 +183,7 @@ class FewSegViT(FewEncoderDecoder):
     def extract_novel_proto(self, dir, path, way, shot):
         ## load Image and Annotations, no augmentation but how to handle the crop??
         ## seed from GFS-Seg: 5
-        all_novel_queries = np.zeros([way, 768]) # [way, dim]
+        all_novel_queries = np.zeros([way, self.decode_head.dim]) # [way, dim]
         # all_cls_queries = np.zeros([way, 768]) # [way, dim]
 
         # generate label for each image
@@ -303,6 +311,81 @@ class FewSegViT(FewEncoderDecoder):
                 proto = (torch.einsum("dhw,hw->dhw", patch_token_cls_i.squeeze(), binary_label.to(patch_token_cls_i.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
 
                 all_novel_queries[labels[n], i_stage, :] += proto.clone().cpu().numpy()
+            n += 1
+        
+        # norm for 1shot or 5shot
+        all_novel_queries /= shot
+
+
+        return all_novel_queries ##？？10 is the best? but why
+
+    def extract_cross_novel_multi_proto(self, dir, path, way, shot):
+        ## load Image and Annotations, no augmentation but how to handle the crop??
+        ## seed from GFS-Seg: 5
+        all_novel_queries = np.zeros([way, self.decode_head.use_stages, 768]) # [way, 3, dim]
+
+        # generate label for each image
+        labels = [[i]*shot for i in range(1, way)]
+        labels = list(itertools.chain.from_iterable(labels))
+
+        n = 0
+        f = open(path, 'r')
+        for filename in f:
+            filename = filename.strip('\n')
+            # print(filename)
+            if len(self.CLASSES) == 21: ## VOC
+                image_path = dir + '/JPEGImages/' + str(filename) + '.jpg'
+                # print('image_path:', image_path)
+                label_path = dir + '/Annotations/' + str(filename) + '.png'
+                # print('label_path:', label_path)
+            elif len(self.CLASSES) == 81: ## COCO2014
+                image_path = dir + '/JPEGImages/train2014/' + str(filename) + '.jpg'
+                label_path = dir + '/Annotations/train_contain_crowd/' + str(filename) + '.png'
+            else:
+                assert AttributeError('Do not support this dataset!')
+
+            print('support_novel_image_path:', image_path)
+            image_ori = cv2.imread(image_path, cv2.IMREAD_COLOR)  # BGR 3 channel ndarray wiht shape H * W * 3
+            image_ori = cv2.cvtColor(image_ori, cv2.COLOR_BGR2RGB)  # convert cv2 read image from BGR order to RGB order
+            image_ori = np.float32(image_ori) # (0-255)
+            label_ori = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE) # 0 is the background
+
+            ## check the image and label
+            image, label = self.val_supp_transform(image_ori, label_ori)
+            # image = image.unsqueeze(0).to(self.backbone.patch_embed.proj.weight.device)
+            try: image = image.unsqueeze(0).to(self.backbone.class_token.device)
+            except: 
+                try: image = image.unsqueeze(0).to(self.backbone.cls_token.device)
+                except: image = image.unsqueeze(0).to(self.backbone.fc.weight.device)
+                
+            # from PIL import Image
+            # import matplotlib.pyplot as plt
+            # plt.imshow(image.squeeze().permute(1,2,0).cpu().numpy()) / plt.imshow(label.squeeze().cpu().numpy())
+            # plt.savefig('image1.png') / plt.savefig('label1.png')
+
+            # get all patch features
+            binary_label = torch.zeros_like(label)
+            binary_label[label == self.novel_class[labels[n]]] = 1
+            assert binary_label.sum() != 0
+            
+            bg_label = torch.zeros_like(label)
+            bg_label[label == 0] = 1
+            
+            novel_support_feat = self.extract_feat(image)[0]
+            
+            for i_stage in range(self.decode_head.use_stages):
+                if i_stage < (len(novel_support_feat)-1):
+                    patch_token_cls_i = novel_support_feat[i_stage][1].clone().detach()
+                else:
+                    patch_token_cls_i = novel_support_feat[i_stage].clone().detach()
+                # obtain the mask
+                patch_token_cls_i = F.interpolate(patch_token_cls_i, size=label.shape[-2:], mode='bilinear', align_corners=False).squeeze() ## (512, 512)
+                proto = (torch.einsum("dhw,hw->dhw", patch_token_cls_i.squeeze(), binary_label.to(patch_token_cls_i.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
+                bg_proto = (torch.einsum("dhw,hw->dhw", patch_token_cls_i.squeeze(), bg_label.to(patch_token_cls_i.device)).sum(-1).sum(-1)) / bg_label.sum()
+
+                all_novel_queries[labels[n], i_stage, :] += proto.clone().cpu().numpy()
+                all_novel_queries[0, i_stage, :] += bg_proto.clone().cpu().numpy() / way
+                
             n += 1
         
         # norm for 1shot or 5shot
