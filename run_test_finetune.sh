@@ -1,0 +1,1 @@
+python test.py configs/voc12_vit_all_prompt_weighted_finetune_tesing/vit_b_16_split_0_512x512_20k_shot_1_seed0.py /media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/finetune_shot_1_seed0/iter_1000.pth --eval=mIoU

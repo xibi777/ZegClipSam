@@ -32,8 +32,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_all_prompt_weighted_finetune/vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "--load-from", "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/iter_10000.pth",
+                "configs/voc12_vit_all_prompt_multi_weighted_finetune/vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "--load-from", "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_multi_weighted_softmax_0.1/vit_b_16_split_0/iter_10000.pth",
                 "--work-dir", "./work_dirs/voc_split_0",
             ]
         },
@@ -49,8 +49,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_single_weighted_binary/vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/coco_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/iter_40000.pth",
+                "configs/voc12_vit_all_prompt_weighted_finetune_tesing/vit_b_16_split_0_512x512_20k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/finetune_shot_1_seed0/iter_1000.pth",
                 "--eval", "mIoU",
             ]
         },
@@ -207,79 +207,6 @@
         },
 
         
-        {
-            "name": "train_voc_ft",
-            "type": "python",
-            "request": "launch",
-            "program": "./train.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": [
-                "configs/voc12_ft_bias/bias_dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "--work-dir", "/media/data/ziqin/work_dirs_fss/voc_ft_bias/split_0_seed0_0.00005",
-                // "--load-from", "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
-                "--load-from", "/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0/iter_5000.pth",
-            ]
-        },
-        
-        
-        {
-            "name": "train_voc_ft_proto",
-            "type": "python",
-            "request": "launch",
-            "program": "./train.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "configs/voc12_ft_proto/proto_vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "--work-dir", "./work_dirs_fss/voc_ft_proto",
-                "--load-from", "/media/data/ziqin/work_dirs_fss/voc_vit/vit_b_16_split_0/iter_10000.pth",
-            ]
-        },
-
-        
-        
-        {
-            "name": "test_voc_ft_proto",
-            "type": "python",
-            "request": "launch",
-            "program": "./test.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "configs/voc12_ft_proto/proto_vit_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "./work_dirs_fss/voc_ft_proto/iter_100.pth",
-                "--eval", "mIoU",
-            ]
-        },
-
-        {
-            "name": "train_voc_ft_tune",
-            "type": "python",
-            "request": "launch",
-            "program": "./train.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "configs/voc12/dino_b_16_split_0_512x512_20k_12_10_novel_ft.py",
-                "--work-dir", "./voc/ft_tune",
-                "--load-from", "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V1/iter_20000.pth",
-            ]
-        },
-
-        {
-            "name": "test_voc_ft_tune",
-            "type": "python",
-            "request": "launch",
-            "program": "./test.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "configs/voc12_ft/decoder_dino_b_16_split_0_512x512_20k_12_10_shot_1_seed0.py",
-                "--work-dir=/media/data/ziqin/work_dirs_fss/voc/dino_b_16_split_0_V3_shot_1_seed0_decoder/iter_500.pth",
-                "--eval", "mIoU",
-            ]
-        },
         {
             "name": "train_mae_voc_fully",
             "type": "python",
