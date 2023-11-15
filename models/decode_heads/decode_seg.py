@@ -162,6 +162,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             use_proj=True,
             crop_train=False,
             backbone_type='vit', #defualt
+            finetune=False,
             **kwargs,
     ):
         super(ATMSingleHeadSeg, self).__init__(
@@ -174,6 +175,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
         self.seen_idx = seen_idx
         self.all_idx = all_idx
         self.backbone_type = backbone_type
+        self.finetune = finetune
 
         nhead = num_heads
         self.dim = embed_dims
@@ -227,6 +229,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                 self.add_module("q_proj_{}".format(i + 1), q_proj_i)
                 q_proj.append(q_proj_i)
             self.q_proj = q_proj
+            
         
     def init_proto(self):
         if self.backbone_type == 'dino': ## dino
@@ -247,7 +250,8 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
-        
+                
+        # only initialized the base classes in training and finetuning stratege
         if self.use_stages == 1:
             init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
         else:
@@ -255,7 +259,6 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
             
         self.base_qs.data = init_protos
-            
 
     def init_weights(self):
         for n, m in self.named_modules():
@@ -319,7 +322,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
             cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim) (9,10,11)layer
 
-        if not self.training:
+        if not self.training: # only for testing
             if self.use_stages == 1:
                 both_proto = torch.zeros([len(self.all_idx), self.in_channels]).to(patch_token[0].device)
             else:

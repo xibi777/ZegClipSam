@@ -46,11 +46,13 @@ class FewSegViT(FewEncoderDecoder):
                  tau=0.07,
                  ft_backbone=False,
                  exclude_key=None,
+                 finetune=False,
                 #  init_cfg=None,
                  **args):
         super(FewSegViT, self).__init__(**args)
         
         self.pretrained = pretrained
+        self.finetune = finetune
 
         self.tau = tau
 
@@ -150,7 +152,30 @@ class FewSegViT(FewEncoderDecoder):
     @auto_fp16(apply_to=('img', ))
     def forward(self, img, img_metas, return_loss=True, **kwargs):
         if return_loss:
-            return self.forward_train(img, img_metas, **kwargs)
+            ## for finetuning:
+            if not self.finetune:
+                return self.forward_train(img, img_metas, **kwargs)
+            else:
+                # register the novel classes:
+                if len(self.base_class) != len(self.both_class): #generalized few-shot setting
+                    if not hasattr(self, 'novel_queries'):
+                        print('\n' + '------------Registering the prototypes of novel classes-----------')
+                        if self.decode_head.use_stages == 1:
+                            if len(self.novel_class) == 21:
+                                ## cross coco-voc
+                                assert AttributeError ('Wrong')
+                            else:
+                                self.novel_queries = self.extract_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        else:
+                            if len(self.novel_class) == 21:
+                                ## cross coco-voc
+                                self.novel_queries = self.extract_cross_novel_multi_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                            else:
+                                self.novel_queries = self.extract_novel_multi_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        # print('------------Registering the aug prototypes of novel classes-----------')
+                        # self.novel_queries = self.extract_aug_novel_proto(self.supp_dir, self.supp_path, way=len(self.novel_class), shot=self.shot)
+                        print('Done! The dimension of novel prototypes is: ', self.novel_queries.shape)
+                    return self.forward_self_train(img, img_metas, **kwargs)
         else:
             ## register novel prototypies:
             if len(self.base_class) != len(self.both_class): #generalized few-shot setting
@@ -183,7 +208,7 @@ class FewSegViT(FewEncoderDecoder):
     def extract_novel_proto(self, dir, path, way, shot):
         ## load Image and Annotations, no augmentation but how to handle the crop??
         ## seed from GFS-Seg: 5
-        all_novel_queries = np.zeros([way, self.decode_head.dim]) # [way, dim]
+        all_novel_queries = np.zeros([way, self.decode_head.in_channels]) # [way, dim]
         # all_cls_queries = np.zeros([way, 768]) # [way, dim]
 
         # generate label for each image
@@ -228,7 +253,8 @@ class FewSegViT(FewEncoderDecoder):
             # plt.savefig('image1.png') / plt.savefig('label1.png')
 
             # get all patch features
-            novel_support_feat = self.extract_feat(image)
+            with torch.no_grad():
+                novel_support_feat = self.extract_feat(image)
             patch_embeddings = novel_support_feat[0][0]  ## V1: (1, dim, 32, 32) dino+vpt better
             # cls_embeddings = novel_support_feat[0][1]
             # patch_embeddings = self.extract_feat(image)[-1] ## V2: only from the original dino
@@ -242,11 +268,21 @@ class FewSegViT(FewEncoderDecoder):
             proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
 
             # print('proto:', str(int(n/num_each_supp))+str(labels[n]))
-            all_novel_queries[labels[n], :] += proto.clone().cpu().numpy()
+            all_novel_queries[labels[n], :] += proto.detach().clone().cpu().numpy()
             n += 1
         
         # norm for 1shot or 5shot
         all_novel_queries /= shot
+        
+        if self.finetune:
+            ## concat the base and novel protos
+            if self.decode_head.use_stages == 1:
+                both_proto = torch.zeros([len(self.both_class), self.decode_head.in_channels]).to(self.decode_head.base_qs.device)
+            else:
+                both_proto = torch.zeros([len(self.both_class), self.decode_head.use_stages, self.decode_head.in_channels]).to(self.decode_head.base_qs.device)
+            both_proto[self.base_class] = self.decode_head.base_qs
+            both_proto[self.novel_class] = torch.from_numpy(all_novel_queries).to(self.decode_head.base_qs.dtype).to(self.decode_head.base_qs.device)
+            self.decode_head.base_qs.data = both_proto.clone()
 
         return all_novel_queries ##？？10 is the best? but why
 
@@ -299,7 +335,8 @@ class FewSegViT(FewEncoderDecoder):
             binary_label[label == self.novel_class[labels[n]]] = 1
             assert binary_label.sum() != 0
             
-            novel_support_feat = self.extract_feat(image)[0]
+            with torch.no_grad():
+                novel_support_feat = self.extract_feat(image)[0]
             
             for i_stage in range(self.decode_head.use_stages):
                 if i_stage < (len(novel_support_feat)-1):
@@ -310,12 +347,21 @@ class FewSegViT(FewEncoderDecoder):
                 patch_token_cls_i = F.interpolate(patch_token_cls_i, size=label.shape[-2:], mode='bilinear', align_corners=False).squeeze() ## (512, 512)
                 proto = (torch.einsum("dhw,hw->dhw", patch_token_cls_i.squeeze(), binary_label.to(patch_token_cls_i.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
 
-                all_novel_queries[labels[n], i_stage, :] += proto.clone().cpu().numpy()
+                all_novel_queries[labels[n], i_stage, :] += proto.detach().clone().cpu().numpy()
             n += 1
         
         # norm for 1shot or 5shot
         all_novel_queries /= shot
 
+        if self.finetune:
+            ## concat the base and novel protos
+            if self.decode_head.use_stages == 1:
+                both_proto = torch.zeros([len(self.both_class), self.decode_head.in_channels]).to(self.decode_head.base_qs.device)
+            else:
+                both_proto = torch.zeros([len(self.both_class), self.decode_head.use_stages, self.decode_head.in_channels]).to(self.decode_head.base_qs.device)
+            both_proto[self.base_class] = self.decode_head.base_qs
+            both_proto[self.novel_class] = torch.from_numpy(all_novel_queries).to(self.decode_head.base_qs.dtype).to(self.decode_head.base_qs.device)
+            self.decode_head.base_qs.data = both_proto.clone()
 
         return all_novel_queries ##？？10 is the best? but why
 
@@ -555,6 +601,29 @@ class FewSegViT(FewEncoderDecoder):
         loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch)
         losses.update(loss_decode)
         return losses
+        
+    def forward_self_train(self, img, img_metas, gt_semantic_seg):
+        ## check whether this image includes novel classes, gt:(bs, 1, 512, 512)
+        # if len(self.base_class) != len(self.both_class): # few-shot setting
+        #     gt_semantic_seg = torch.Tensor(self.visibility_seen_mask).type_as(gt_semantic_seg)[gt_semantic_seg]
+
+        # print('gt:', gt_semantic_seg.unique()) should including all classes
+        visual_feat = self.extract_feat(img) # (bs, 1025, 768)
+        feat = []
+        feat.append(visual_feat)
+
+        # assert self.decode_head.base_qs.shape[1] == len(visual_feat[0])
+        if self.decode_head.use_stages == 1:
+            qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[0][0].clone().detach(), gt_semantic_seg.squeeze()) # V1: from dino+vpt better
+            # qs_epoch = self.extract_base_proto_epoch(self.decode_head.base_qs, visual_feat[-1], gt_semantic_seg.squeeze()) # V2: only from dino
+        else:
+            qs_epoch = self.extract_base_multi_proto_epoch(self.decode_head.base_qs, visual_feat[0], gt_semantic_seg.squeeze())
+
+        losses = dict()
+        loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch)
+        losses.update(loss_decode)
+        return losses
+            
         
     def encode_decode(self, img, img_metas, novel_queries=None): 
         visual_feat = self.extract_feat(img)
