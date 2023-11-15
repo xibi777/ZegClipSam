@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/finetuning_config/voc12_512x512_shot_5_seed0.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_1k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_200.py'
 ]
 
 img_size = 512
@@ -32,7 +32,7 @@ model = dict(
         total_d_layer=11,
         style='pytorch'),
     decode_head=dict(
-        type='ATMSingleHeadSeg',
+        type='MultiATMSingleHeadSeg',
         img_size=img_size,
         in_channels=in_channels,
         seen_idx=base_class,

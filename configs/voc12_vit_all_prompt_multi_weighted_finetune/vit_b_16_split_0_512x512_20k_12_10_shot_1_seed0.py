@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/finetuning_config/voc12_512x512_shot_1_seed0.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_1k.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_200.py'
 ]
 
 img_size = 512
@@ -79,6 +79,6 @@ optimizer = dict(type='AdamW', lr=0.00002, weight_decay=0.01,
                                         'head': dict(lr_mult=1.),
                                         }))
 
-data = dict(samples_per_gpu=2,
-            workers_per_gpu=2,)
+data = dict(samples_per_gpu=4,
+            workers_per_gpu=4,)
 
