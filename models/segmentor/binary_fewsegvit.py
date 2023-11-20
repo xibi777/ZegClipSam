@@ -272,10 +272,21 @@ class BinaryFewSegViT(FewEncoderDecoder):
             novel_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), binary_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / binary_label.sum()  # dim
             
             bg_label = torch.zeros_like(binary_label)
-            bg_label[binary_label == 0] = 1
+            # bg_label[binary_label == 0] = 1 ## or make all not the class as the background
+            bg_label[binary_label != cls_label] = 1 ## or make all not the class as the background
             # fake_label[label == 255] = 0
             bg_proto = (torch.einsum("dhw,hw->dhw", patch_embeddings.squeeze(), bg_label.to(patch_embeddings.device)).sum(-1).sum(-1)) / bg_label.sum()  # dim
-            bg_novel_proto = torch.concat((bg_proto.unsqueeze(0), novel_proto.unsqueeze(0)), dim=0)
+            # bg_novel_proto = torch.concat((bg_proto.unsqueeze(0), novel_proto.unsqueeze(0)), dim=0)
+            
+            # bg_novel_proto = torch.concat((self.decode_head.base_qs[0].unsqueeze(0), novel_proto.unsqueeze(0)), dim=0)
+            # bg_novel_proto = torch.concat((self.decode_head.base_qs.mean(0).unsqueeze(0), novel_proto.unsqueeze(0)), dim=0)
+            
+            ## use finetuned
+            # bg_novel_proto = torch.concat((self.decode_head.base_qs[0].unsqueeze(0), self.decode_head.base_qs[cls_label].unsqueeze(0)), dim=0)
+            
+            ## use all prototypes
+            # bg_novel_proto = torch.concat((self.decode_head.base_qs, bg_novel_proto), dim=0)
+            bg_novel_proto = torch.concat((self.decode_head.base_qs, novel_proto.unsqueeze(0)), dim=0)
             
         # return novel_proto
         self.supp_cls = cls_label #???

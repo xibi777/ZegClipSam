@@ -1698,8 +1698,10 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
         self.register_buffer("cur_iter", torch.Tensor([0]))
         if self.use_stages == 1:
             self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), in_channels)))
+            # self.register_buffer("base_qs", torch.zeros((81, in_channels)))
         else:
             self.register_buffer("base_qs", torch.zeros((len(self.seen_idx), self.use_stages, in_channels)))
+            
         self.q_proj = nn.Linear(in_channels * 2 * use_stages, embed_dims)
         if use_stages >1:
             self.patch_proj = nn.Linear(in_channels * use_stages, embed_dims)
@@ -1765,6 +1767,11 @@ class BinaryATMSingleHeadSeg(BaseDecodeHead):
     def semantic_inference_binary(self, mask_pred, weight):
         mask_pred = mask_pred.sigmoid()
         mask_pred[:, 0] = mask_pred[:, 0] - weight
+        
+        ## get the max logit
+        # mask_pred = torch.concat([mask_pred[:,:-1].max(dim=1)[0].unsqueeze(1), mask_pred[:,-1].unsqueeze(1)], dim=1)
+        mask_pred = torch.concat([mask_pred[:,:-1].max(dim=1)[0].unsqueeze(1), (1-mask_pred[:,:-1].max(dim=1)[0].unsqueeze(1))], dim=1)
+
         return mask_pred
 
     def update_m(self, end_m=1.0, base_m=0.996):

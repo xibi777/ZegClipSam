@@ -184,7 +184,7 @@ class BinaryCOCO2014Dataset(CustomDataset):
         mIoU = 0
         total = len(results)
         for i in range(len(results)):
-            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 2)
+            intersection, union, new_target = self.intersectionAndUnion(binary_results[i], targets[i], 1)
             mIoU += intersection/union
 
         print('Total mIoU of 1000 pair-wise novel classes:', mIoU/total)
@@ -218,7 +218,9 @@ class BinaryCOCO2014Dataset(CustomDataset):
             # label[label!=255] -= 1
             binary_label = np.zeros_like(label)
             binary_label[label == n_cls] = 1
-            binary_label[label==255] = 255
+            # binary_label[label != n_cls] = 255
+            # binary_label[label == 0] = 0
+            binary_label[label == 255] = 255
             binary_labels.append(binary_label)
             n+=1
         return binary_labels
