@@ -1,6 +1,6 @@
 _base_ = [
-    '../_base_/models/fewsegvit.py', '../_base_/datasets/finetuning_config/voc12_512x512_shot_1_seed0.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_200.py'
+    '../_base_/models/fewsegvit.py', '../_base_/datasets/voc12_512x512_fully.py',
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_10k.py'
 ]
 
 img_size = 512
@@ -8,13 +8,13 @@ in_channels = 2048
 channels = 768
 out_indices = [11]
 
-base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-novel_class = [16, 17, 18, 19, 20]
+base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20]
+novel_class = [11, 12, 13, 14, 15]
 both_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 num_classes = len(base_class)
 
 eval_supp_dir = '/media/data/ziqin/data_fss/VOC2012'
-eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_3_shot_1_seed0.txt'
+eval_supp_path = '/media/data/ziqin/data_fss/VOC2012/ImageSets/FewShotSegmentation/val_supp_split_2_shot_1_seed1.txt'
 
 pretrained = '/media/data/ziqin/pretrained/resnet/resnet50-19c8e357.pth'
 
@@ -38,7 +38,7 @@ model = dict(
         num_layers=3,
         num_heads=8,
         use_proj=True,
-        cls_type='weighted',
+        cls_type='ave',
         backbone_type='rn50',
         use_stages=len(out_indices),
         out_indices=out_indices,
@@ -53,7 +53,7 @@ model = dict(
     base_class = base_class,
     novel_class = novel_class,
     both_class = both_class,
-    split = 3,
+    split = 2,
     shot = 1,
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,

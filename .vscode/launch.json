@@ -62,14 +62,14 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env":{
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "configs/voc12_vit_all_prompt_weighted_finetune_testing/vit_b_16_split_1_512x512_20k_shot_1_seed0.py",
-                "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_1/finetune_shot_1_seed0/iter_50.pth",
+                "configs/voc12_resnet50_fix_weighted_finetune_testing/resnet50_split_0_512x512_20k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/finetune_shot_1_seed0/iter_50.pth",
                 "--eval", "mIoU",
-                "--savetxt", "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_1/finetune_shot_1_seed0/shot_1_seed0_results_iter50.txt",
-                "--finetune_split", "1"
+                "--savetxt", "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/finetune_shot_1_seed0/shot_1_seed0_results_iter50.txt",
+                "--finetune_split", "0"
             ]
         },
 
