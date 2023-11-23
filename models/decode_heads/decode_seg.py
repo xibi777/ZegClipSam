@@ -462,7 +462,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             # out["pred"] = self.semantic_inference_multi(outputs_seg_masks, self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best
             return out["pred"]   
         return out
@@ -494,7 +494,7 @@ class ATMSingleHeadSeg(BaseDecodeHead):
             # similarity = torch.bmm(q_norm.expand(bs, -1, -1), cls_norm).sigmoid()## (bs, c, n)
             # similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
             ## Version2: softmax
-            similarity = (torch.bmm(q_norm.expand(bs, -1, -1), cls_norm)/0.1).softmax(-1)
+            similarity = (torch.bmm(q_norm.expand(bs, -1, -1), cls_norm)/0.01).softmax(-1)
             
             q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2)
             
@@ -1484,7 +1484,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             out["qs_base"] = qs
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 
@@ -1533,7 +1533,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             # similarity = similarity / (similarity.sum(-1).unsqueeze(-1))
             
             ## Version2 softmax
-            similarity = (torch.bmm(q_norm.reshape(s*bs, c, dim), cls_norm.reshape(s*bs, dim, n))/0.1).softmax(-1).reshape(s, bs, c, n)
+            similarity = (torch.bmm(q_norm.reshape(s*bs, c, dim), cls_norm.reshape(s*bs, dim, n))/0.01).softmax(-1).reshape(s, bs, c, n)
             
             q1 = (q1 * similarity.unsqueeze(-1)).sum(dim=-2) # (s, bs, c, d)
             
