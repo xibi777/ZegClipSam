@@ -274,6 +274,9 @@ class FewSegViT(FewEncoderDecoder):
         # norm for 1shot or 5shot
         all_novel_queries /= shot
         
+        # ??10
+        all_novel_queries /= 10
+        
         if self.finetune:
             ## concat the base and novel protos
             if self.decode_head.use_stages == 1:

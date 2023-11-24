@@ -305,61 +305,9 @@ def main():
             eval_kwargs.update(metric=args.eval)
             if args.savetxt:
                 # if args.finetune_split:
-                print('========Saving results without finetuning========')
-                support_path = args.config.split('/').pop(-1)
-                metric, return_results = dataset.multi_evaluate(seen_idx, unseen_idx, results, **eval_kwargs)
-                metric_dict = dict(config=args.config, metric=metric)
-                mmcv.dump(metric_dict, json_file, indent=4)
-                if tmpdir is not None and eval_on_format_results:
-                    # remove tmp dir when cityscapes evaluation
-                    shutil.rmtree(tmpdir)
-
-                f=open(args.savetxt, 'a+')
-                f.write(str(support_path) + '\n')
-                for k in return_results:
-                    f.write(str(k)+':'+str(return_results[k]) + '\n')
-                f.close()
-                # else:
-                # print('========Saving results with finetuning========')
-                # if len(seen_idx) <50 : #VOC
-                #     print('This is VOC')
-                #     if args.finetune_split == 0:
-                #         base_class = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                #         novel_class = [1, 2, 3, 4, 5]
-                #     elif args.finetune_split == 1:
-                #         base_class = [0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                #         novel_class = [6, 7, 8, 9, 10]
-                #     elif args.finetune_split == 2:
-                #         base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20]
-                #         novel_class = [11, 12, 13, 14, 15]
-                #     elif args.finetune_split == 3:
-                #         base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                #         novel_class = [16, 17, 18, 19, 20]
-                # elif len(seen_idx) > 50: #COCO
-                #     print('This is COCO')
-                #     if args.finetune_split == 0:
-                #         base_class = [0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 
-                #                         28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 
-                #                         55, 56, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 71, 72, 74, 75, 76, 78, 79, 80]
-                #         novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
-                #     elif args.finetune_split == 1:
-                #         base_class = [0, 1, 3, 4, 5, 7, 8, 9, 11, 12, 13, 15, 16, 17, 19, 20, 21, 23, 24, 25, 27,
-                #                         28, 29, 31, 32, 33, 35, 36, 37, 39, 40, 41, 43, 44, 45, 47, 48, 49, 51, 52, 
-                #                         53, 55, 56, 57, 59, 60, 61, 63, 64, 65, 67, 68, 69, 71, 72, 73, 75, 76, 77, 79, 80]
-                #         novel_class = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78]
-                #     elif args.finetune_split == 2:
-                #         base_class = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 
-                #                         29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 
-                #                         56, 57, 58, 60, 61, 62, 64, 65, 66, 68, 69, 70, 72, 73, 74, 76, 77, 78, 80]
-                #         novel_class = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67, 71, 75, 79]
-                #     elif args.finetune_split == 3:
-                #         base_class = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 
-                #                         29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 45, 46, 47, 49, 50, 51, 53, 54, 
-                #                         55, 57, 58, 59, 61, 62, 63, 65, 66, 67, 69, 70, 71, 73, 74, 75, 77, 78, 79] # 0:background
-                #         novel_class = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80]
-                    
+                # print('========Saving results without finetuning========')
                 # support_path = args.config.split('/').pop(-1)
-                # metric, return_results = dataset.multi_evaluate(base_class, novel_class, results, **eval_kwargs)
+                # metric, return_results = dataset.multi_evaluate(seen_idx, unseen_idx, results, **eval_kwargs)
                 # metric_dict = dict(config=args.config, metric=metric)
                 # mmcv.dump(metric_dict, json_file, indent=4)
                 # if tmpdir is not None and eval_on_format_results:
@@ -371,6 +319,58 @@ def main():
                 # for k in return_results:
                 #     f.write(str(k)+':'+str(return_results[k]) + '\n')
                 # f.close()
+                # else:
+                print('========Saving results with finetuning========')
+                if len(seen_idx) <50 : #VOC
+                    print('This is VOC')
+                    if args.finetune_split == 0:
+                        base_class = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                        novel_class = [1, 2, 3, 4, 5]
+                    elif args.finetune_split == 1:
+                        base_class = [0, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                        novel_class = [6, 7, 8, 9, 10]
+                    elif args.finetune_split == 2:
+                        base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20]
+                        novel_class = [11, 12, 13, 14, 15]
+                    elif args.finetune_split == 3:
+                        base_class = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                        novel_class = [16, 17, 18, 19, 20]
+                elif len(seen_idx) > 50: #COCO
+                    print('This is COCO')
+                    if args.finetune_split == 0:
+                        base_class = [0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 22, 23, 24, 26, 27, 
+                                        28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 
+                                        55, 56, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 71, 72, 74, 75, 76, 78, 79, 80]
+                        novel_class = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77]
+                    elif args.finetune_split == 1:
+                        base_class = [0, 1, 3, 4, 5, 7, 8, 9, 11, 12, 13, 15, 16, 17, 19, 20, 21, 23, 24, 25, 27,
+                                        28, 29, 31, 32, 33, 35, 36, 37, 39, 40, 41, 43, 44, 45, 47, 48, 49, 51, 52, 
+                                        53, 55, 56, 57, 59, 60, 61, 63, 64, 65, 67, 68, 69, 71, 72, 73, 75, 76, 77, 79, 80]
+                        novel_class = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78]
+                    elif args.finetune_split == 2:
+                        base_class = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 
+                                        29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 
+                                        56, 57, 58, 60, 61, 62, 64, 65, 66, 68, 69, 70, 72, 73, 74, 76, 77, 78, 80]
+                        novel_class = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67, 71, 75, 79]
+                    elif args.finetune_split == 3:
+                        base_class = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 
+                                        29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 45, 46, 47, 49, 50, 51, 53, 54, 
+                                        55, 57, 58, 59, 61, 62, 63, 65, 66, 67, 69, 70, 71, 73, 74, 75, 77, 78, 79] # 0:background
+                        novel_class = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80]
+                    
+                support_path = args.config.split('/').pop(-1)
+                metric, return_results = dataset.multi_evaluate(base_class, novel_class, results, **eval_kwargs)
+                metric_dict = dict(config=args.config, metric=metric)
+                mmcv.dump(metric_dict, json_file, indent=4)
+                if tmpdir is not None and eval_on_format_results:
+                    # remove tmp dir when cityscapes evaluation
+                    shutil.rmtree(tmpdir)
+
+                f=open(args.savetxt, 'a+')
+                f.write(str(support_path) + '\n')
+                for k in return_results:
+                    f.write(str(k)+':'+str(return_results[k]) + '\n')
+                f.close()
 
             else:
                 metric = dataset.evaluate(seen_idx, unseen_idx, results, **eval_kwargs)

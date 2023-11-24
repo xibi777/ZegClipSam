@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/fewsegvit.py', '../_base_/datasets/finetuning_config/voc12_512x512_shot_1_seed0.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_200.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_1k.py'
 ]
 
 img_size = 512
