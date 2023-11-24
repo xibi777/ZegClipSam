@@ -59,6 +59,7 @@ model = dict(
     supp_dir = eval_supp_dir,
     supp_path = eval_supp_path,
     ft_backbone = False,
+    finetune=True,
 )
 
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-6, by_epoch=False,

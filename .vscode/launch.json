@@ -32,7 +32,7 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_rn50_all_weighted_finetune/resnet50_split_0_512x512_20k_12_10_shot_1_seed0.py",
+                "configs/voc12_resnet50_fix_weighted_finetune/resnet50_split_0_512x512_20k_shot_1_seed0.py",
                 "--load-from", "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/iter_20000.pth",
                 "--work-dir", "./work_dirs/voc_split_0",
                  ]
