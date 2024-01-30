@@ -550,7 +550,8 @@ class FewSegViT(FewEncoderDecoder):
 
     def extract_base_multi_proto_epoch(self, qs, patch_features, targets):
         ## qs(base, 768), patch(bs, 768, 32, 32), gt(bs, 512, 512)
-        assert patch_features[0][1].shape[0] == targets.shape[0]
+        # assert patch_features[0][1].shape[0] == targets.shape[0]
+        assert patch_features[0][0].shape[0] == targets.shape[0]
         # need .clone().detach() on patch feature??
         # targets = F.interpolate(targets.unsqueeze(1).float(), size=patch_features.shape[-2:], mode='nearest').squeeze(1).int() ## (32, 32)
         # resnet50: patch (bs, 2048. 512, 512)

@@ -238,22 +238,27 @@ class ATMSingleHeadSeg(BaseDecodeHead):
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+            np_init = np.load(path)
         elif self.backbone_type == 'vit': ## vit
             print('Initialized prototypes with ViT model')
             if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
+            np_init = np.load(path)
         elif self.backbone_type == 'rn50': ## vit
             print('Initialized prototypes with ViT model')
             if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
+            np_init = np.load(path)
+        else:
+            np_init = np.random.randn(len(self.all_idx), 1, self.dim)
                 
         # only initialized the base classes in training and finetuning stratege
         if self.use_stages == 1:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+            init_protos = torch.from_numpy(np_init).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
         else:
             assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
             # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
@@ -687,6 +692,28 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
                 q_proj.append(q_proj_i)
             self.q_proj = q_proj
         
+    # def init_proto(self):
+    #     if self.backbone_type == 'dino': ## dino
+    #         print('Initialized prototypes with DINO model')
+    #         if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+    #             path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+    #         elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+    #             path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+    #     elif self.backbone_type == 'vit': ## vit
+    #         print('Initialized prototypes with ViT model')
+    #         if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+    #             path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
+    #         elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+    #             path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
+        
+    #     if self.use_stages == 1:
+    #         init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+    #     else:    
+    #         assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
+    #         # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
+            
+    #     self.base_qs.data = init_protos
+        
     def init_proto(self):
         if self.backbone_type == 'dino': ## dino
             print('Initialized prototypes with DINO model')
@@ -694,16 +721,28 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+            np_init = np.load(path)
         elif self.backbone_type == 'vit': ## vit
             print('Initialized prototypes with ViT model')
             if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
-        
+            np_init = np.load(path)
+        elif self.backbone_type == 'rn50': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
+            np_init = np.load(path)
+        else:
+            np_init = np.random.randn(len(self.all_idx), 1, self.dim)
+                
+        # only initialized the base classes in training and finetuning stratege
         if self.use_stages == 1:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
-        else:    
+            init_protos = torch.from_numpy(np_init).to(self.base_qs.dtype).to(self.base_qs.device)[:, -1][self.seen_idx] ##for 11
+        else:
             assert AttributeError('Using MultiATMSingleHeadSeg when you need fusing multiple relationship descriptors')
             # init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, -self.use_stages:][self.seen_idx] ##for 11
             
@@ -730,20 +769,20 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             return self.forward(inputs)
 
     def forward(self, inputs, qs_epoch=None, novel_queries=None):
-        if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
-            if self.cur_iter == 0:
-                self.init_proto()
+        # if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
+        if self.cur_iter == 0:
+            self.init_proto()
         
         if self.use_stages == 1:
             ## only use the last layer
             patch_token = inputs[0][0] #(bs, dim, 32, 32)
-            cls_token = inputs[0][1] #(bs, dim)
+            # cls_token = inputs[0][1] #(bs, dim)
         else:
             ## combine the patch_token from different layers
             patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
             patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
-            cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
-            cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
+            # cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
+            # cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
 
         if not self.training:
             if self.use_stages == 1:
@@ -834,7 +873,7 @@ class ATMSingleHeadSegWORD(BaseDecodeHead):
             outputs_seg_masks = torch.stack(outputs_seg_masks, dim=0)# (3, bs, 15, 14, 14)
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   \
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   \
             return out["pred"]   
         return out
 
@@ -1310,29 +1349,55 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             self.patch_proj = nn.Linear(in_channels * use_stages, embed_dims)
         
     def init_proto(self):
+        # if self.backbone_type == 'dino': ## dino
+        #     print('Initialized prototypes with DINO model')
+        #     if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+        #         path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
+        #     elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+        #         path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+        # elif self.backbone_type == 'vit': ## vit
+        #     print('Initialized prototypes with ViT model')
+        #     if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+        #         path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
+        #     elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+        #         path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
+        
+        # if self.use_stages == 1:
+        #     init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, self.out_indices][self.seen_idx] ##for 11
+        # else:
+        #     save_init_proto_idx = np.array([3, 6, 9, 10, 11])
+        #     indices = np.where(np.isin(save_init_proto_idx, np.array(self.out_indices)))[0]
+        #     init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, indices][self.seen_idx].squeeze() ##for 11
+            
+        # self.base_qs.data = init_protos
+        
         if self.backbone_type == 'dino': ## dino
             print('Initialized prototypes with DINO model')
             if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos_dino.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos_dino.npy'
+            np_init = np.load(path)
         elif self.backbone_type == 'vit': ## vit
             print('Initialized prototypes with ViT model')
             if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
                 path = '/media/data/ziqin/data_fss/init_protos/voc_protos.npy'
             elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
                 path = '/media/data/ziqin/data_fss/init_protos/coco_protos.npy'
-        
-        if self.use_stages == 1:
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, self.out_indices][self.seen_idx] ##for 11
+            np_init = np.load(path)
+        elif self.backbone_type == 'rn50': ## vit
+            print('Initialized prototypes with ViT model')
+            if len(self.seen_idx) == 16 or len(self.seen_idx) == 21: # voc
+                path = '/media/data/ziqin/data_fss/init_protos/voc_protos_rn50.npy'
+            elif len(self.seen_idx) == 61 or len(self.seen_idx) == 81:
+                path = '/media/data/ziqin/data_fss/init_protos/coco_protos_rn50.npy'
+            np_init = np.load(path)
         else:
-            save_init_proto_idx = np.array([3, 6, 9, 10, 11])
-            indices = np.where(np.isin(save_init_proto_idx, np.array(self.out_indices)))[0]
-            init_protos = torch.from_numpy(np.load(path)).to(self.base_qs.dtype).to(self.base_qs.device)[:, indices][self.seen_idx].squeeze() ##for 11
-            
+            np_init = np.random.randn(len(self.all_idx), len(self.out_indices), self.dim)
+                
+        init_protos = torch.from_numpy(np_init).to(self.base_qs.dtype).to(self.base_qs.device)[self.seen_idx] ##for 11
         self.base_qs.data = init_protos
-            
-
+        
     def init_weights(self):
         for n, m in self.named_modules():
             if isinstance(m, nn.Linear):
@@ -1367,10 +1432,10 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
         return cls_token
 
     def forward(self, inputs, qs_epoch=None, novel_queries=None):
-        if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
-            if self.cur_iter == 0:
-                self.init_proto()
-        
+        # if inputs[0][1].shape[-1] == 768: # only for vit, not for resnet
+        if self.cur_iter == 0:
+            self.init_proto()
+            
         if self.use_stages == 1:
             ## only use the last layer
             patch_token = inputs[0][0] #(bs, dim, 32, 32)
@@ -1382,8 +1447,11 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
                 cls_token = patch_token[0] # (bs, dim, 32, 32)
         else:
             ## combine the patch_token from different layers
-            patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
-            patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
+            # patch_token = torch.stack([inputs[0][0][i_stage][1] for i_stage in range(self.use_stages-1)])
+            # patch_token = torch.concat([patch_token, inputs[0][0][-1].unsqueeze(0)]) #(use_stage, bs, dim, 32, 32)
+            patch_token = torch.stack([F.interpolate(inputs[0][0][i_stage], size=(32,32), mode='bilinear', align_corners=False).squeeze() for i_stage in range(self.use_stages)]) #only for swin trans
+            if patch_token.shape[1] == 1024: ## only for swin
+                patch_token = patch_token.unsqueeze(1)
             if self.cls_type == 'cls':
                 cls_token = torch.stack([inputs[0][0][i_stage][0] for i_stage in range(self.use_stages-1)])
                 cls_token = torch.concat([cls_token, inputs[0][1].unsqueeze(0)]) #(use_stage, bs, dim)
@@ -1484,7 +1552,7 @@ class MultiATMSingleHeadSeg(BaseDecodeHead):
             out["qs_base"] = qs
             out["aux_outputs"] = self._set_aux_loss(outputs_seg_masks)
         else:
-            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.0) ## Change the balance factor： 0.2 is the best   
+            out["pred"] = self.semantic_inference(out["pred_masks"], self.seen_idx, 0.2) ## Change the balance factor： 0.2 is the best   
             return out["pred"]   
         return out
 

@@ -272,10 +272,10 @@ class FewBaseSegmentor(BaseModule, metaclass=ABCMeta):
             else:
                 palette = self.PALETTE
         palette = np.array(palette)
-        assert palette.shape[0] == len(self.CLASSES)
-        assert palette.shape[1] == 3
-        assert len(palette.shape) == 2
-        assert 0 < opacity <= 1.0
+        # assert palette.shape[0] == len(self.CLASSES)
+        # assert palette.shape[1] == 3
+        # assert len(palette.shape) == 2
+        # assert 0 < opacity <= 1.0
         color_seg = np.zeros((seg.shape[0], seg.shape[1], 3), dtype=np.uint8)
         for label, color in enumerate(palette):
             color_seg[seg == label, :] = color

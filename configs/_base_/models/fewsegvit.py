@@ -11,8 +11,9 @@ model = dict(
     context_length=5,
     backbone=dict(
         type='CLIPResNetWithAttention',
-        layers=[3, 4, 6, 3],
-        style='pytorch'),
+        # layers=[3, 4, 6, 3],
+        # style='pytorch'
+        ),
     decode_head=dict(
         type='ATMSingleHead',
         img_size=img_size,

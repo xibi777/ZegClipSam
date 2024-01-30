@@ -16,7 +16,7 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "configs/voc12_vit_capl_prompt/vit_b_16_split_0_512x512_20k_12_10.py",
+                "configs/voc12_vit_fix_all_prompt_multi_weighted/vit_b_16_split_0_512x512_20k.py",
                 "--work-dir", "./work_dirs/voc_split_0",
             ]
         },
@@ -67,8 +67,9 @@
             "args": [
                 "configs/voc12_resnet50_fix_weighted_finetune_testing/resnet50_split_0_512x512_20k_shot_1_seed0.py",
                 "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/finetune_shot_1_seed0/iter_50.pth",
-                "--eval", "mIoU",
-                "--savetxt", "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/finetune_shot_1_seed0/shot_1_seed0_results_iter50.txt",
+                // "--eval", "mIoU",
+                // "--savetxt", "/media/data/ziqin/work_dirs_fss/voc_resnet50_fix_weighted/resnet50_split_0/finetune_shot_1_seed0/shot_1_seed0_results_iter50.txt",
+                "--show", "--show-dir", "/media/data/ziqin/work_dirs_fss/voc_vit_all_prompt_weighted_softmax_0.1/vit_b_16_split_0/finetune_shot_5_seed0/vis/",
                 "--finetune_split", "0"
             ]
         },
@@ -603,6 +604,39 @@
                 "--work-dir", "./work_dirs/voc_vit",
             ]
         }, 
+
+        {
+            "name": "train_swin",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "configs/voc12_swin_lora_weighted_384/swin_split_0_512x512_10k.py",
+                "--work-dir", "./work_dirs/voc_swin",
+            ]
+        },
+
+        {
+            "name": "test_swin",
+            "type": "python",
+            "request": "launch",
+            "program": "./test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12_swin_fix_multi_weighted_384_2_3/swin_split_0_512x512_10k_shot_1_seed0.py",
+                "/media/data/ziqin/work_dirs_fss/voc/swin_384_split_0_2_3/iter_10000.pth",
+                "--eval", "mIoU",
+            ]
+        },
 
     ]
 }
