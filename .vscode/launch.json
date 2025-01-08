@@ -1,0 +1,82 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "name": "Launch Extension",
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "preLaunchTask": "npm",
+            "request": "launch",
+            "type": "extensionHost"
+        },
+
+        {
+            "name": "voc",
+            "type": "python",
+            "request": "launch",
+            "program": "ZegCLIP/train.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            // "args": [
+            //     "configs/voc12_try/w_qcls_vpt_seg_zero_vit-b_512x512_20k_12_10.py",
+            //     "--work-dir", "./work_dirs/voc"
+            // ],
+        },
+        {
+            "name": "test_zero_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "ZegCLIP/test.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "./ZegCLIP/configs/voc12/vpt_seg_zero_vit-b_512x512_20k_12_10.py",
+                "/media/data/ziqin/output_sam/ZegCLIP_test_scratch/latest.pth",
+                "--eval", "mIoU",
+            ],
+        },
+        {
+            "name": "train_zero_voc",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "configs/voc12/vpt_seg_zero_vit-b_512x512_20k_12_10.py",
+                "--work-dir", "./work_dirs_test/voc"
+            ],
+        },
+        {
+            "name": "voc_rn50",
+            "type": "python",
+            "request": "launch",
+            "program": "./train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "3"
+            },
+            "args": [
+                "configs/resnet/voc_lora_seg_zero_rn50_512x512_20k.py",
+                "--work-dir", "./work_dirs_test/voc"
+            ],
+        }
+    ]
+}
