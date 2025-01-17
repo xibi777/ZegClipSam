@@ -1,6 +1,0 @@
-mae_coco_voc_split_0_shot_5_seed0.py
-pAcc:0.7736416922271935
-mIoU_S:nan
-mIoU_U:0.5742387393294047
-hIoU:nan
-

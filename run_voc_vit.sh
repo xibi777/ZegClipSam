@@ -1,0 +1,2 @@
+bash dist_train_0123.sh configs/voc12_vit/vit_b_16_split_0_512x512_20k_shot_1_seed0_9_10_11.py work_dirs/voc/split_1_seed0_9_10_11/
+bash dist_train_0123.sh configs/voc12_vit/vit_b_16_split_0_512x512_20k_shot_1_seed0_11.py work_dirs/voc/split_1_seed0_11/

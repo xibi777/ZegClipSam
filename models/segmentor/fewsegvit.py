@@ -125,7 +125,7 @@ class FewSegViT(FewEncoderDecoder):
         self.align_corners = self.decode_head.align_corners
         self.num_classes = self.decode_head.num_classes
 
-    def _decode_head_forward_train(self, feat, img_metas, gt_semantic_seg, qs_epoch=None):
+    def _decode_head_forward_train(self, feat, img_metas, gt_semantic_seg, qs_epoch=None, mask=None):
         """Run forward function and calculate loss for decode head in
         training."""
 
@@ -135,18 +135,19 @@ class FewSegViT(FewEncoderDecoder):
                                                     img_metas,
                                                     gt_semantic_seg,
                                                     qs_epoch,
-                                                    self.train_cfg,)
+                                                    self.train_cfg,
+                                                    mask,)
 
         losses.update(add_prefix(loss_decode, 'decode'))
         return losses
         
-    def _decode_head_forward_test(self, x, img_metas, novel_queries=None):
+    def _decode_head_forward_test(self, x, img_metas, novel_queries=None, mask=None):
         """Run forward function and calculate loss for decode head in
         inference."""
         if novel_queries is not None:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_queries)
+            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, novel_queries, mask)
         else:
-            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg)
+            seg_logits = self.decode_head.forward_test(x, img_metas, self.test_cfg, mask)
         return seg_logits
 
     @auto_fp16(apply_to=('img', ))
@@ -583,7 +584,7 @@ class FewSegViT(FewEncoderDecoder):
         qs_epoch[num_base!=0] = qs_epoch[num_base!=0] / num_base[num_base!=0].unsqueeze(-1).unsqueeze(-1) #(16, stage, 768)
         return qs_epoch
 
-    def forward_train(self, img, img_metas, gt_semantic_seg):
+    def forward_train(self, img, img_metas, gt_semantic_seg, mask):
         ## check whether this image includes novel classes, gt:(bs, 1, 512, 512)
         assert gt_semantic_seg.unique() not in self.novel_class
         if len(self.base_class) != len(self.both_class): # few-shot setting
@@ -602,7 +603,7 @@ class FewSegViT(FewEncoderDecoder):
             qs_epoch = self.extract_base_multi_proto_epoch(self.decode_head.base_qs, visual_feat[0], gt_semantic_seg.squeeze())
 
         losses = dict()
-        loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch)
+        loss_decode = self._decode_head_forward_train(feat, img_metas, gt_semantic_seg, qs_epoch, mask)
         losses.update(loss_decode)
         return losses
         
@@ -629,16 +630,16 @@ class FewSegViT(FewEncoderDecoder):
         return losses
             
         
-    def encode_decode(self, img, img_metas, novel_queries=None): 
+    def encode_decode(self, img, img_metas, novel_queries=None, mask=None): 
         visual_feat = self.extract_feat(img)
 
         feat = []
         feat.append(visual_feat)
 
         if novel_queries is not None:
-            out = self._decode_head_forward_test(feat, img_metas, novel_queries)
+            out = self._decode_head_forward_test(feat, img_metas, novel_queries, mask)
         else:
-            out = self._decode_head_forward_test(feat, img_metas)
+            out = self._decode_head_forward_test(feat, img_metas, mask)
         out = resize(
             input=out,
             size=img.shape[2:],
@@ -647,7 +648,7 @@ class FewSegViT(FewEncoderDecoder):
         return out
 
     # TODO refactor
-    def slide_inference(self, img, img_meta, rescale, novel_protoes=None):
+    def slide_inference(self, img, img_meta, rescale, novel_protoes=None, mask=None):
         """Inference by sliding-window with overlap.
 
         If h_crop > h_img or w_crop > w_img, the small patch will be used to
@@ -670,10 +671,11 @@ class FewSegViT(FewEncoderDecoder):
                 y1 = max(y2 - h_crop, 0)
                 x1 = max(x2 - w_crop, 0)
                 crop_img = img[:, :, y1:y2, x1:x2]
+                crop_mask = mask[0][:, :, y1:y2, x1:x2]
                 if novel_protoes is not None:
-                    crop_seg_logit = self.encode_decode(crop_img, img_meta, novel_protoes)
+                    crop_seg_logit = self.encode_decode(crop_img, img_meta, novel_protoes, crop_mask)
                 else:
-                    crop_seg_logit = self.encode_decode(crop_img, img_meta)
+                    crop_seg_logit = self.encode_decode(crop_img, img_meta, crop_mask)
                 preds += F.pad(crop_seg_logit,
                                (int(x1), int(preds.shape[3] - x2), int(y1),
                                 int(preds.shape[2] - y2)))

@@ -224,7 +224,7 @@ class FewEncoderDecoder(FewBaseSegmentor):
 
         return seg_logit
 
-    def inference(self, img, img_meta, rescale, novel_protoes=None):
+    def inference(self, img, img_meta, rescale, novel_protoes=None, mask=None):
         """Inference with slide/whole style.
 
         Args:
@@ -245,9 +245,9 @@ class FewEncoderDecoder(FewBaseSegmentor):
         assert all(_['ori_shape'] == ori_shape for _ in img_meta)
         if novel_protoes is not None:
             if self.test_cfg.mode == 'slide':
-                seg_logit = self.slide_inference(img, img_meta, rescale, novel_protoes)
+                seg_logit = self.slide_inference(img, img_meta, rescale, novel_protoes, mask)
             else:
-                seg_logit = self.whole_inference(img, img_meta, rescale, novel_protoes)
+                seg_logit = self.whole_inference(img, img_meta, rescale, novel_protoes, mask)
         else:
             if self.test_cfg.mode == 'slide':
                 seg_logit = self.slide_inference(img, img_meta, rescale)
@@ -265,10 +265,10 @@ class FewEncoderDecoder(FewBaseSegmentor):
 
         return output
 
-    def simple_test(self, img, img_meta, rescale=True, novel_protoes=None):
+    def simple_test(self, img, img_meta, rescale=True, novel_protoes=None, mask=None):
         """Simple test with single image."""
         if novel_protoes is not None:
-            seg_logit = self.inference(img, img_meta, rescale, novel_protoes)
+            seg_logit = self.inference(img, img_meta, rescale, novel_protoes, mask)
         else:
             seg_logit = self.inference(img, img_meta, rescale)
         seg_pred = seg_logit.argmax(dim=1)
